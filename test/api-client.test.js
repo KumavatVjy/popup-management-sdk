@@ -429,6 +429,7 @@ await runAsyncTest('18. Repeated load() calls perform fresh requests', async () 
   PopupManager.init({
     websiteKey: 'wg_live_repeat_test',
     apiBaseUrl: 'http://localhost:8082',
+    autoLoad: false,
   });
 
   const firstBatch = await PopupManager.load();

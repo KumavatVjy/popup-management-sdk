@@ -235,6 +235,7 @@ runTest('15. Repeated init() calls replace configuration consistently', () => {
   PopupManager.init({
     websiteKey: 'wg_live_first_key',
     apiBaseUrl: 'http://localhost:8082',
+    autoLoad: false,
     autoShow: true,
   });
 
@@ -242,6 +243,7 @@ runTest('15. Repeated init() calls replace configuration consistently', () => {
   PopupManager.init({
     websiteKey: 'wg_live_second_key',
     apiBaseUrl: 'https://api.example.com',
+    autoLoad: false,
     autoShow: false,
   });
 
@@ -249,27 +251,28 @@ runTest('15. Repeated init() calls replace configuration consistently', () => {
   PopupManager.init({
     websiteKey: 'wg_live_third_key',
     apiBaseUrl: 'http://127.0.0.1:8080',
-    debug: true,
+    autoLoad: false,
+    debug: false,
   });
 });
 
-// 16. Initialization performs no HTTP requests or DOM operations
-runTest('16. Initialization performs no HTTP requests or DOM operations', () => {
+// 16. Initialization with autoLoad: false performs no HTTP requests or DOM operations
+runTest('16. Initialization with autoLoad: false performs no HTTP requests or DOM operations', () => {
   let fetchCalled = false;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = () => {
     fetchCalled = true;
-    return Promise.reject(new Error('fetch must not be called during init'));
+    return Promise.reject(new Error('fetch must not be called during init when autoLoad is false'));
   };
 
   try {
     PopupManager.init({
       websiteKey: 'wg_live_no_side_effects',
       apiBaseUrl: 'http://localhost:8082',
-      autoLoad: true,
+      autoLoad: false,
       autoShow: true,
     });
-    assert.strictEqual(fetchCalled, false, 'init() must not perform any fetch calls');
+    assert.strictEqual(fetchCalled, false, 'init() must not perform fetch calls when autoLoad is false');
   } finally {
     globalThis.fetch = originalFetch;
   }

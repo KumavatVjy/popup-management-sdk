@@ -43,24 +43,39 @@ assert.strictEqual(context.PopupManager.version, '0.1.0', 'PopupManager.version 
 assert.strictEqual(context.PopupManager.SDK_VERSION, '0.1.0', 'PopupManager.SDK_VERSION must be 0.1.0');
 assert.strictEqual(typeof context.PopupManager.init, 'function', 'PopupManager.init must be a function in IIFE');
 assert.strictEqual(typeof context.PopupManager.load, 'function', 'PopupManager.load must be a function in IIFE');
+assert.strictEqual(typeof context.PopupManager.refresh, 'function', 'PopupManager.refresh must be a function in IIFE');
+assert.strictEqual(typeof context.PopupManager.destroy, 'function', 'PopupManager.destroy must be a function in IIFE');
+assert.strictEqual(typeof context.PopupManager.getState, 'function', 'PopupManager.getState must be a function in IIFE');
 
 // Verify calling init() in IIFE context succeeds
 context.PopupManager.init({
   websiteKey: 'wg_live_iife_smoke',
   apiBaseUrl: 'http://localhost:8082',
+  autoLoad: false,
 });
+
+assert.strictEqual(context.PopupManager.getState(), 'CONFIGURED');
 
 // Verify calling load() in IIFE context returns popups
 const iifePopups = await context.PopupManager.load();
 assert.strictEqual(iifePopups.length, 1);
 assert.strictEqual(iifePopups[0].title, 'Smoke Test Popup');
+assert.strictEqual(context.PopupManager.getState(), 'READY');
+
+// Verify refresh() in IIFE context
+const refreshedPopups = await context.PopupManager.refresh();
+assert.strictEqual(refreshedPopups.length, 1);
+
+// Verify destroy() in IIFE context
+context.PopupManager.destroy();
+assert.strictEqual(context.PopupManager.getState(), 'DESTROYED');
 
 // Verify invalid config throws in IIFE context
 assert.throws(() => {
   context.PopupManager.init({ websiteKey: '', apiBaseUrl: 'http://localhost:8082' });
 });
 
-console.log('✓ IIFE distribution exposes global PopupManager with functioning init() and load()');
+console.log('✓ IIFE distribution exposes global PopupManager with functioning init(), load(), refresh(), destroy()');
 
 // 2. Test ESM bundle
 const esmModule = await import('../dist/popup-manager.esm.js');
@@ -70,10 +85,18 @@ assert.strictEqual(esmModule.version, '0.1.0', 'ESM version must be 0.1.0');
 assert.strictEqual(esmModule.default.version, '0.1.0', 'ESM default.version must be 0.1.0');
 assert.strictEqual(typeof esmModule.PopupManager.init, 'function', 'ESM PopupManager.init must be a function');
 assert.strictEqual(typeof esmModule.PopupManager.load, 'function', 'ESM PopupManager.load must be a function');
+assert.strictEqual(typeof esmModule.PopupManager.refresh, 'function', 'ESM PopupManager.refresh must be a function');
+assert.strictEqual(typeof esmModule.PopupManager.destroy, 'function', 'ESM PopupManager.destroy must be a function');
+assert.strictEqual(typeof esmModule.PopupManager.getState, 'function', 'ESM PopupManager.getState must be a function');
 assert.strictEqual(typeof esmModule.load, 'function', 'ESM load named export must be a function');
+assert.strictEqual(typeof esmModule.refresh, 'function', 'ESM refresh named export must be a function');
+assert.strictEqual(typeof esmModule.destroy, 'function', 'ESM destroy named export must be a function');
+assert.strictEqual(typeof esmModule.getState, 'function', 'ESM getState named export must be a function');
+assert.strictEqual(typeof esmModule.filterEligiblePopups, 'function', 'ESM filterEligiblePopups must be exported');
 assert(esmModule.ConfigurationError, 'ESM ConfigurationError must be exported');
 assert(esmModule.ApiClient, 'ESM ApiClient must be exported');
 assert(esmModule.ApiClientError, 'ESM ApiClientError must be exported');
+assert(esmModule.RuntimeStates, 'ESM RuntimeStates must be exported');
 
 globalThis.fetch = async () => createMockResponse(200, mockPayload);
 
@@ -81,17 +104,27 @@ globalThis.fetch = async () => createMockResponse(200, mockPayload);
 esmModule.PopupManager.init({
   websiteKey: 'wg_live_esm_smoke',
   apiBaseUrl: 'https://api.example.com',
+  autoLoad: false,
   autoShow: false,
 });
+
+assert.strictEqual(esmModule.PopupManager.getState(), 'CONFIGURED');
 
 const esmPopups = await esmModule.PopupManager.load();
 assert.strictEqual(esmPopups.length, 1);
 assert.strictEqual(esmPopups[0].id, 1);
+assert.strictEqual(esmModule.PopupManager.getState(), 'READY');
+
+const esmRefreshed = await esmModule.PopupManager.refresh();
+assert.strictEqual(esmRefreshed.length, 1);
+
+esmModule.PopupManager.destroy();
+assert.strictEqual(esmModule.PopupManager.getState(), 'DESTROYED');
 
 // Verify invalid config throws in ESM
 assert.throws(() => {
   esmModule.PopupManager.init({ websiteKey: '', apiBaseUrl: 'http://localhost:8082' });
 });
 
-console.log('✓ ESM distribution exports PopupManager, version constants, ApiClient, and functioning init()/load()');
+console.log('✓ ESM distribution exports PopupManager with functioning lifecycle methods');
 console.log('Smoke tests completed successfully!');
