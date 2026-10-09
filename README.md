@@ -19,11 +19,45 @@ GET /api/v1/public/popups?website_key={websiteKey}
   - `dist/popup-manager.min.js`: Minified IIFE bundle exposing the global `PopupManager` object for direct browser `<script>` tag embedding.
 - **Security**: No administrative credentials, JWT tokens, or internal database identifiers are included or required. Only public `websiteKey` strings (`wg_live_...`) are used.
 
-## Current Project Status
+## Configuration & Initialization
 
-- **Phase 3 — Lesson 3A: Project Setup & Build Pipeline** (Active)
-- Core project configuration, strict TypeScript baseline, and dual Rollup build pipeline established.
-- Runtime methods (`init`, `load`, `show`, `hide`, etc.) will be incrementally implemented in upcoming lessons.
+Initialize the SDK by calling `PopupManager.init(config)`:
+
+```ts
+import PopupManager from 'popup-manager-sdk';
+
+PopupManager.init({
+  websiteKey: "wg_live_example",
+  apiBaseUrl: "http://localhost:8082",
+  autoLoad: true,
+  autoShow: true,
+  debug: false
+});
+```
+
+Or via direct browser script tag:
+
+```html
+<script src="dist/popup-manager.min.js"></script>
+<script>
+  PopupManager.init({
+    websiteKey: "wg_live_example",
+    apiBaseUrl: "http://localhost:8082"
+  });
+</script>
+```
+
+### Configuration Options
+
+| Option | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `websiteKey` | `string` | **Yes** | — | Public website integration key (e.g. `wg_live_...`). Must not be empty or whitespace-only. Leading/trailing whitespace is trimmed. |
+| `apiBaseUrl` | `string` | **Yes** | — | Base origin URL of the Popup Management API (e.g. `http://localhost:8082` or `https://api.example.com`). Must be an absolute HTTP or HTTPS URL without credentials, query parameters, or fragments. Trailing slashes are automatically normalized. |
+| `autoLoad` | `boolean` | No | `true` | Whether to automatically fetch eligible popups upon initialization. |
+| `autoShow` | `boolean` | No | `true` | Whether to automatically display eligible popups after loading. |
+| `debug` | `boolean` | No | `false` | Enables verbose diagnostic logging for troubleshooting. |
+
+> **Note on Current Scope**: In Lesson 3B, `PopupManager.init(config)` validates options, resolves defaults, and stores the normalized configuration internally. API fetching, popup evaluation, and Shadow DOM rendering are configuration flags only at this stage and will be implemented in subsequent lessons.
 
 ## Development Scripts
 
@@ -33,6 +67,9 @@ npm install
 
 # Type-check TypeScript sources
 npm run typecheck
+
+# Run configuration unit and smoke tests
+npm test
 
 # Build ESM and minified IIFE distributions
 npm run build

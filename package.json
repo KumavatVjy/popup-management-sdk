@@ -13,7 +13,7 @@
   "scripts": {
     "build": "rollup -c",
     "typecheck": "tsc --noEmit",
-    "test": "node test/smoke.js",
+    "test": "node --experimental-strip-types test/config.test.js && node test/smoke.js",
     "clean": "node -e \"const fs=require('fs'); fs.rmSync('dist', { recursive: true, force: true });\""
   },
   "devDependencies": {

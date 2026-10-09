@@ -16,12 +16,23 @@
   <script src="dist/popup-manager.min.js"></script>
   <script>
     const statusEl = document.getElementById('status');
-    if (typeof window.PopupManager !== 'undefined' && window.PopupManager.version === '0.1.0') {
-      statusEl.className = 'status-pass';
-      statusEl.textContent = 'PASS: window.PopupManager detected with version ' + window.PopupManager.version;
-    } else {
+    try {
+      if (typeof window.PopupManager !== 'undefined' && window.PopupManager.version === '0.1.0' && typeof window.PopupManager.init === 'function') {
+        window.PopupManager.init({
+          websiteKey: 'wg_live_browser_smoke_test',
+          apiBaseUrl: window.location.origin || 'http://localhost:8082',
+          autoLoad: true,
+          autoShow: true,
+        });
+        statusEl.className = 'status-pass';
+        statusEl.textContent = 'PASS: window.PopupManager detected (version ' + window.PopupManager.version + ') and initialized successfully';
+      } else {
+        statusEl.className = 'status-fail';
+        statusEl.textContent = 'FAIL: window.PopupManager global was not found or init is missing';
+      }
+    } catch (e) {
       statusEl.className = 'status-fail';
-      statusEl.textContent = 'FAIL: window.PopupManager global was not found or has incorrect version';
+      statusEl.textContent = 'FAIL: Error during initialization: ' + e.message;
     }
   </script>
 </body>
