@@ -1,5 +1,6 @@
 import typescript from '@rollup/plugin-typescript';
 import terser from '@rollup/plugin-terser';
+import nodeResolve from '@rollup/plugin-node-resolve';
 
 export default [
   // 1. ESM distribution for modern applications and bundlers (Vite, Webpack, Rollup)
@@ -11,6 +12,7 @@ export default [
       sourcemap: true,
     },
     plugins: [
+      nodeResolve({ browser: true }),
       typescript({
         tsconfig: './tsconfig.json',
       }),
@@ -27,6 +29,7 @@ export default [
       sourcemap: true,
     },
     plugins: [
+      nodeResolve({ browser: true }),
       typescript({
         tsconfig: './tsconfig.json',
       }),

@@ -3,10 +3,11 @@ import { PublicPopup } from '../client/types';
 import { ApiClient } from '../client/api-client';
 import { RuntimeState } from './state';
 import { filterEligiblePopups } from './eligibility';
+import { PopupRenderer } from '../renderer/shadow-dom';
 
 /**
  * RuntimeManager orchestrates SDK lifecycle states, active network transport,
- * client-side schedule revalidation, and teardown.
+ * client-side schedule revalidation, rendering display, and teardown.
  */
 export class RuntimeManager {
   private state: RuntimeState = 'UNINITIALIZED';
@@ -14,6 +15,7 @@ export class RuntimeManager {
   private client: ApiClient | null = null;
   private popups: PublicPopup[] = [];
   private generationId: number = 0;
+  private renderer: PopupRenderer = new PopupRenderer();
 
   /**
    * Returns the current lifecycle state of the SDK runtime.
@@ -30,17 +32,26 @@ export class RuntimeManager {
   }
 
   /**
+   * Returns true if a popup is currently mounted and visible on screen.
+   */
+  public isVisible(): boolean {
+    return this.renderer.isVisible();
+  }
+
+  /**
    * Initializes or replaces the active runtime session with normalized configuration
    * and an initialized API client.
    *
-   * Increments the generation ID to prevent any prior pending requests from updating
-   * runtime state. If autoLoad is enabled, initiates background loading asynchronously
-   * with safe internal error handling.
+   * Resets any existing rendered popup and increments the generation ID to prevent prior
+   * pending requests from updating state. If autoLoad is enabled, initiates background loading.
    *
    * @param config The normalized configuration object.
    * @param client The configured ApiClient instance.
    */
   public init(config: NormalizedPopupManagerConfig, client: ApiClient): void {
+    // Tear down any existing rendered popup and listeners
+    this.renderer.destroy();
+
     // Invalidate any in-flight requests from prior initialization
     this.generationId++;
 
@@ -62,14 +73,7 @@ export class RuntimeManager {
 
   /**
    * Loads eligible popups from the backend delivery API and revalidates their schedule.
-   *
-   * Lifecycle transitions:
-   * - Transitions to LOADING while the request is in flight.
-   * - Transitions to READY if at least one eligible popup is found.
-   * - Transitions to IDLE if no eligible popups are found.
-   * - Transitions to ERROR if network transport or validation fails.
-   *
-   * On failure, previously retained popup data is cleared to prevent stale data display.
+   * If autoShow is enabled and a DOM environment exists, automatically displays the first eligible popup.
    *
    * @returns A promise resolving to an array of validated, schedule-eligible PublicPopup objects.
    * @throws ConfigurationError if called before init() or after destroy().
@@ -95,6 +99,7 @@ export class RuntimeManager {
       if (this.generationId === currentGeneration && (this.state as RuntimeState) !== 'DESTROYED') {
         this.state = 'ERROR';
         this.popups = [];
+        this.renderer.hide();
       }
       throw error;
     }
@@ -105,6 +110,21 @@ export class RuntimeManager {
     if (this.generationId === currentGeneration && (this.state as RuntimeState) !== 'DESTROYED') {
       this.popups = eligible;
       this.state = eligible.length > 0 ? 'READY' : 'IDLE';
+
+      // If autoShow is configured and eligible popups exist, display the first popup
+      if (this.config.autoShow) {
+        if (eligible.length > 0) {
+          if (typeof document !== 'undefined') {
+            try {
+              this.show();
+            } catch {
+              // Gracefully handle render failures during autoShow
+            }
+          }
+        } else {
+          this.renderer.hide();
+        }
+      }
     }
 
     return eligible;
@@ -112,9 +132,7 @@ export class RuntimeManager {
 
   /**
    * Refreshes eligible popup data by performing a fresh network request and schedule revalidation.
-   *
-   * Delegates directly to load(), ensuring fresh network transport, client-side schedule
-   * re-evaluation against the current timestamp, and runtime state updates.
+   * Updates or removes any active popup display to reflect fresh server data.
    *
    * @returns A promise resolving to an array of validated, schedule-eligible PublicPopup objects.
    */
@@ -123,15 +141,61 @@ export class RuntimeManager {
   }
 
   /**
-   * Cleans up the runtime session and releases resources.
+   * Displays an eligible popup on screen inside the Shadow DOM host.
    *
-   * Transitions state to DESTROYED, invalidates in-flight requests, and clears retained
-   * popup data and client references. Subsequent calls to load() or refresh() will reject
-   * until init() is called again.
+   * - If popupId is omitted, displays the first eligible popup in the backend ordering.
+   * - If popupId is supplied, displays that popup only if it is in the loaded eligible list.
+   * - Fails predictably without creating an empty host if no eligible popup is available.
+   *
+   * @param popupId Optional ID of the specific eligible popup to render.
+   * @throws ConfigurationError if called prior to initialization or after destruction.
+   * @throws Error if called outside a DOM environment or if the requested popup is unavailable.
+   */
+  public show(popupId?: number): void {
+    if (this.state === 'DESTROYED') {
+      throw new ConfigurationError('PopupManager has been destroyed. Call init() before calling show()');
+    }
+
+    if (this.state === 'UNINITIALIZED' || !this.config) {
+      throw new ConfigurationError('PopupManager must be initialized before calling show()');
+    }
+
+    if (typeof document === 'undefined') {
+      throw new Error('DOM environment is required to render popups');
+    }
+
+    if (this.popups.length === 0) {
+      throw new Error('No eligible popups available to display');
+    }
+
+    let target: PublicPopup;
+    if (popupId !== undefined) {
+      const found = this.popups.find((p) => p.id === popupId);
+      if (!found) {
+        throw new Error(`Popup with ID ${popupId} is not available or ineligible`);
+      }
+      target = found;
+    } else {
+      target = this.popups[0]!;
+    }
+
+    this.renderer.render(target);
+  }
+
+  /**
+   * Hides the currently rendered popup and removes its backdrop and event listeners.
+   */
+  public hide(): void {
+    this.renderer.hide();
+  }
+
+  /**
+   * Cleans up the runtime session, releases resources, and removes the Shadow DOM host.
    */
   public destroy(): void {
     this.generationId++;
     this.state = 'DESTROYED';
+    this.renderer.destroy();
     this.popups = [];
     this.config = null;
     this.client = null;

@@ -2,51 +2,291 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Popup Manager SDK — Smoke Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Popup Manager SDK — Browser Smoke Test & Interactive Playground</title>
   <style>
-    body { font-family: sans-serif; margin: 40px; }
-    .status-pass { color: #059669; font-weight: bold; }
-    .status-fail { color: #dc2626; font-weight: bold; }
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --danger: #ef4444;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 32px 20px;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    p.subtitle {
+      margin: 0 0 24px 0;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus {
+      border-color: var(--primary);
+    }
+    .checkbox-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 16px;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #fff;
+    }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    button.btn-primary { background: var(--primary); color: #fff; }
+    button.btn-primary:hover { background: var(--primary-hover); }
+    button.btn-success { background: var(--success); color: #fff; }
+    button.btn-danger { background: var(--danger); color: #fff; }
+    button.btn-secondary { background: #475569; color: #fff; }
+    button.btn-secondary:hover { background: #64748b; }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    .status-UNINITIALIZED { background: #475569; color: #fff; }
+    .status-CONFIGURED { background: #0284c7; color: #fff; }
+    .status-LOADING { background: #eab308; color: #000; }
+    .status-READY { background: #10b981; color: #fff; }
+    .status-IDLE { background: #64748b; color: #fff; }
+    .status-ERROR { background: #ef4444; color: #fff; }
+    .status-DESTROYED { background: #dc2626; color: #fff; }
+    pre {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      max-height: 240px;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
-  <h1>Popup Manager SDK — Browser Smoke Test</h1>
-  <p id="status">Loading SDK...</p>
-  <pre id="output"></pre>
+  <div class="container">
+    <h1>Popup Manager SDK — Smoke Test</h1>
+    <p class="subtitle">Interactive Shadow DOM popup rendering and lifecycle test harness.</p>
 
+    <div class="card">
+      <div class="form-group">
+        <label for="websiteKeyInput">Website Key (public integration identifier):</label>
+        <input type="text" id="websiteKeyInput" value="wg_live_test_site" placeholder="wg_live_...">
+      </div>
+
+      <div class="form-group">
+        <label for="apiBaseUrlInput">API Base URL:</label>
+        <input type="text" id="apiBaseUrlInput" value="http://localhost:8082" placeholder="http://localhost:8082">
+      </div>
+
+      <div class="checkbox-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoLoadCheck">
+          autoLoad
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoShowCheck" checked>
+          autoShow
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="debugCheck" checked>
+          debug
+        </label>
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-primary" id="initBtn">1. Init SDK</button>
+        <button type="button" class="btn-secondary" id="loadBtn">2. Load Popups</button>
+        <button type="button" class="btn-success" id="showBtn">3. Show Popup</button>
+        <button type="button" class="btn-secondary" id="hideBtn">4. Hide Popup</button>
+        <button type="button" class="btn-secondary" id="refreshBtn">5. Refresh</button>
+        <button type="button" class="btn-danger" id="destroyBtn">6. Destroy</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-weight: 600; font-size: 0.9rem;">Runtime Lifecycle State:</span>
+        <span class="status-badge status-UNINITIALIZED" id="stateBadge">UNINITIALIZED</span>
+      </div>
+      <label>Diagnostic Logs & Payload Output:</label>
+      <pre id="logOutput">Ready. Click '1. Init SDK' or trigger methods above.</pre>
+    </div>
+  </div>
+
+  <!-- Include minified IIFE distribution -->
   <script src="dist/popup-manager.min.js"></script>
   <script>
-    const statusEl = document.getElementById('status');
-    const outputEl = document.getElementById('output');
+    const websiteKeyInput = document.getElementById('websiteKeyInput');
+    const apiBaseUrlInput = document.getElementById('apiBaseUrlInput');
+    const autoLoadCheck = document.getElementById('autoLoadCheck');
+    const autoShowCheck = document.getElementById('autoShowCheck');
+    const debugCheck = document.getElementById('debugCheck');
+    const stateBadge = document.getElementById('stateBadge');
+    const logOutput = document.getElementById('logOutput');
 
-    async function runSmokeTest() {
-      try {
-        if (
-          typeof window.PopupManager !== 'undefined' &&
-          window.PopupManager.version === '0.1.0' &&
-          typeof window.PopupManager.init === 'function' &&
-          typeof window.PopupManager.load === 'function'
-        ) {
-          window.PopupManager.init({
-            websiteKey: 'wg_live_browser_smoke_test',
-            apiBaseUrl: window.location.origin || 'http://localhost:8082',
-            autoLoad: true,
-            autoShow: true,
-          });
+    function log(msg, data) {
+      const timestamp = new Date().toISOString().substring(11, 19);
+      let text = `[${timestamp}] ${msg}`;
+      if (data !== undefined) {
+        text += '\n' + JSON.stringify(data, null, 2);
+      }
+      logOutput.textContent = text + '\n\n' + logOutput.textContent;
+      updateStateBadge();
+    }
 
-          statusEl.className = 'status-pass';
-          statusEl.textContent = 'PASS: window.PopupManager detected (v' + window.PopupManager.version + ') and initialized with load() method available';
-        } else {
-          statusEl.className = 'status-fail';
-          statusEl.textContent = 'FAIL: window.PopupManager global was not found or init/load methods are missing';
-        }
-      } catch (e) {
-        statusEl.className = 'status-fail';
-        statusEl.textContent = 'FAIL: Error during test: ' + e.message;
+    function updateStateBadge() {
+      if (typeof window.PopupManager !== 'undefined') {
+        const state = window.PopupManager.getState();
+        stateBadge.textContent = state;
+        stateBadge.className = 'status-badge status-' + state;
       }
     }
 
-    runSmokeTest();
+    document.getElementById('initBtn').addEventListener('click', () => {
+      try {
+        const key = websiteKeyInput.value.trim();
+        const base = apiBaseUrlInput.value.trim();
+        window.PopupManager.init({
+          websiteKey: key,
+          apiBaseUrl: base,
+          autoLoad: autoLoadCheck.checked,
+          autoShow: autoShowCheck.checked,
+          debug: debugCheck.checked,
+        });
+        log('PopupManager.init() succeeded');
+      } catch (e) {
+        log('Init error: ' + e.message);
+      }
+    });
+
+    document.getElementById('loadBtn').addEventListener('click', async () => {
+      try {
+        log('Calling PopupManager.load()...');
+        const popups = await window.PopupManager.load();
+        log(`PopupManager.load() resolved with ${popups.length} eligible popup(s):`, popups);
+      } catch (e) {
+        log('Load error: ' + e.message);
+      }
+    });
+
+    document.getElementById('showBtn').addEventListener('click', () => {
+      try {
+        window.PopupManager.show();
+        log('PopupManager.show() invoked');
+      } catch (e) {
+        log('Show error: ' + e.message);
+      }
+    });
+
+    document.getElementById('hideBtn').addEventListener('click', () => {
+      try {
+        window.PopupManager.hide();
+        log('PopupManager.hide() invoked');
+      } catch (e) {
+        log('Hide error: ' + e.message);
+      }
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+      try {
+        log('Calling PopupManager.refresh()...');
+        const popups = await window.PopupManager.refresh();
+        log(`PopupManager.refresh() resolved with ${popups.length} eligible popup(s):`, popups);
+      } catch (e) {
+        log('Refresh error: ' + e.message);
+      }
+    });
+
+    document.getElementById('destroyBtn').addEventListener('click', () => {
+      try {
+        window.PopupManager.destroy();
+        log('PopupManager.destroy() invoked. Shadow DOM host removed.');
+      } catch (e) {
+        log('Destroy error: ' + e.message);
+      }
+    });
+
+    // Check SDK on load
+    if (typeof window.PopupManager !== 'undefined') {
+      log('PopupManager global loaded successfully (v' + window.PopupManager.version + ')');
+    } else {
+      log('Warning: window.PopupManager not found. Ensure dist/popup-manager.min.js is built.');
+    }
   </script>
 </body>
 </html>

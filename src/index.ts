@@ -9,6 +9,8 @@ import { ApiClient, ApiClientError } from './client/api-client';
 import { RuntimeState, RuntimeStates } from './runtime/state';
 import { filterEligiblePopups } from './runtime/eligibility';
 import { RuntimeManager } from './runtime/manager';
+import { sanitizeHtml } from './renderer/sanitize';
+import { PopupRenderer, HOST_ELEMENT_ID } from './renderer/shadow-dom';
 
 /**
  * Current version of the Popup Manager SDK.
@@ -65,9 +67,6 @@ export const PopupManager = {
    * Retrieves active, eligible popups for the configured website from the backend delivery API,
    * revalidating their schedule on the client.
    *
-   * Requires successful initialization via PopupManager.init(config).
-   * Does not create DOM elements or render anything on screen.
-   *
    * @returns A promise resolving to an array of validated, eligible PublicPopup objects.
    * @throws ConfigurationError if called prior to initialization or after destroy().
    * @throws ApiClientError if network transport fails or response data is invalid.
@@ -78,9 +77,7 @@ export const PopupManager = {
 
   /**
    * Refreshes eligible popup data by performing a fresh network request and schedule revalidation.
-   *
-   * Replaces retained popup data and updates runtime lifecycle state.
-   * Does not create DOM elements or display anything on screen.
+   * Updates or removes any active popup display to reflect fresh server data.
    *
    * @returns A promise resolving to an array of validated, eligible PublicPopup objects.
    * @throws ConfigurationError if called prior to initialization or after destroy().
@@ -91,10 +88,29 @@ export const PopupManager = {
   },
 
   /**
-   * Cleans up the runtime session and releases resources.
+   * Renders and displays an eligible popup on screen inside an isolated Shadow DOM container.
    *
-   * Transitions state to DESTROYED and clears retained popup data.
-   * Subsequent calls to load() or refresh() will reject until init() is called again.
+   * - If popupId is omitted, displays the first eligible popup in the backend ordering.
+   * - If popupId is supplied, displays that popup only if it is in the loaded eligible list.
+   *
+   * @param popupId Optional ID of the specific eligible popup to render.
+   * @throws ConfigurationError if called prior to initialization or after destruction.
+   * @throws Error if called outside a DOM environment or if the requested popup is unavailable.
+   */
+  show(popupId?: number): void {
+    runtimeManager.show(popupId);
+  },
+
+  /**
+   * Hides the currently active popup and removes its backdrop and keyboard listeners.
+   */
+  hide(): void {
+    runtimeManager.hide();
+  },
+
+  /**
+   * Cleans up the runtime session, removes the Shadow DOM host, and releases all resources.
+   * Subsequent calls to load(), refresh(), or show() will reject until init() is called again.
    */
   destroy(): void {
     runtimeManager.destroy();
@@ -124,6 +140,16 @@ export const load = (): Promise<PublicPopup[]> => PopupManager.load();
 export const refresh = (): Promise<PublicPopup[]> => PopupManager.refresh();
 
 /**
+ * Direct function export of show for root namespace convenience.
+ */
+export const show = (popupId?: number): void => PopupManager.show(popupId);
+
+/**
+ * Direct function export of hide for root namespace convenience.
+ */
+export const hide = (): void => PopupManager.hide();
+
+/**
  * Direct function export of destroy for root namespace convenience.
  */
 export const destroy = (): void => PopupManager.destroy();
@@ -146,5 +172,8 @@ export {
   RuntimeStates,
   filterEligiblePopups,
   RuntimeManager,
+  sanitizeHtml,
+  PopupRenderer,
+  HOST_ELEMENT_ID,
 };
 export default PopupManager;

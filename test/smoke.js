@@ -44,6 +44,8 @@ assert.strictEqual(context.PopupManager.SDK_VERSION, '0.1.0', 'PopupManager.SDK_
 assert.strictEqual(typeof context.PopupManager.init, 'function', 'PopupManager.init must be a function in IIFE');
 assert.strictEqual(typeof context.PopupManager.load, 'function', 'PopupManager.load must be a function in IIFE');
 assert.strictEqual(typeof context.PopupManager.refresh, 'function', 'PopupManager.refresh must be a function in IIFE');
+assert.strictEqual(typeof context.PopupManager.show, 'function', 'PopupManager.show must be a function in IIFE');
+assert.strictEqual(typeof context.PopupManager.hide, 'function', 'PopupManager.hide must be a function in IIFE');
 assert.strictEqual(typeof context.PopupManager.destroy, 'function', 'PopupManager.destroy must be a function in IIFE');
 assert.strictEqual(typeof context.PopupManager.getState, 'function', 'PopupManager.getState must be a function in IIFE');
 
@@ -86,13 +88,20 @@ assert.strictEqual(esmModule.default.version, '0.1.0', 'ESM default.version must
 assert.strictEqual(typeof esmModule.PopupManager.init, 'function', 'ESM PopupManager.init must be a function');
 assert.strictEqual(typeof esmModule.PopupManager.load, 'function', 'ESM PopupManager.load must be a function');
 assert.strictEqual(typeof esmModule.PopupManager.refresh, 'function', 'ESM PopupManager.refresh must be a function');
+assert.strictEqual(typeof esmModule.PopupManager.show, 'function', 'ESM PopupManager.show must be a function');
+assert.strictEqual(typeof esmModule.PopupManager.hide, 'function', 'ESM PopupManager.hide must be a function');
 assert.strictEqual(typeof esmModule.PopupManager.destroy, 'function', 'ESM PopupManager.destroy must be a function');
 assert.strictEqual(typeof esmModule.PopupManager.getState, 'function', 'ESM PopupManager.getState must be a function');
 assert.strictEqual(typeof esmModule.load, 'function', 'ESM load named export must be a function');
 assert.strictEqual(typeof esmModule.refresh, 'function', 'ESM refresh named export must be a function');
+assert.strictEqual(typeof esmModule.show, 'function', 'ESM show named export must be a function');
+assert.strictEqual(typeof esmModule.hide, 'function', 'ESM hide named export must be a function');
 assert.strictEqual(typeof esmModule.destroy, 'function', 'ESM destroy named export must be a function');
 assert.strictEqual(typeof esmModule.getState, 'function', 'ESM getState named export must be a function');
 assert.strictEqual(typeof esmModule.filterEligiblePopups, 'function', 'ESM filterEligiblePopups must be exported');
+assert.strictEqual(typeof esmModule.sanitizeHtml, 'function', 'ESM sanitizeHtml must be exported');
+assert.strictEqual(typeof esmModule.PopupRenderer, 'function', 'ESM PopupRenderer must be exported');
+assert.strictEqual(typeof esmModule.HOST_ELEMENT_ID, 'string', 'ESM HOST_ELEMENT_ID must be exported');
 assert(esmModule.ConfigurationError, 'ESM ConfigurationError must be exported');
 assert(esmModule.ApiClient, 'ESM ApiClient must be exported');
 assert(esmModule.ApiClientError, 'ESM ApiClientError must be exported');
