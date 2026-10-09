@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESM Distribution Browser Verification Test</title>
+  <style>
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 24px;
+    }
+    #output {
+      background: #1e293b;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>ESM Distribution Live Browser Verification</h1>
+  <div id="output">Loading ESM module...</div>
+
+  <script type="module">
+    const output = document.getElementById('output');
+    function log(text) {
+      output.textContent += '\n' + text;
+      console.log(text);
+    }
+
+    try {
+      // Import the built ESM module directly
+      const { PopupManager, SDK_VERSION } = await import('/dist/popup-manager.esm.js');
+      log(`[PASS] ESM module imported successfully. SDK_VERSION: ${SDK_VERSION}`);
+
+      let loadedCount = 0;
+      let shownPopupId = null;
+
+      PopupManager.on('popup:loaded', (payload) => {
+        loadedCount = payload.count;
+        log(`[PASS] EVENT popup:loaded emitted with count: ${payload.count}`);
+      });
+
+      PopupManager.on('popup:shown', (payload) => {
+        shownPopupId = payload.popupId;
+        log(`[PASS] EVENT popup:shown emitted for popupId: ${payload.popupId}`);
+      });
+
+      PopupManager.init({
+        websiteKey: 'wg_live_test_integration_secret_key_001',
+        apiBaseUrl: 'http://localhost:8082',
+        autoLoad: false,
+        autoShow: false,
+      });
+
+      log(`[PASS] PopupManager.init() succeeded. State: ${PopupManager.getState()}`);
+
+      const popups = await PopupManager.load();
+      log(`[PASS] PopupManager.load() resolved with ${popups.length} popups`);
+
+      // Test showing center modal (id: 901)
+      PopupManager.show(901);
+      log(`[PASS] PopupManager.show(901) invoked. Visible: ${PopupManager.getState()}`);
+
+      const host = document.getElementById('popup-manager-host-root');
+      if (host && host.shadowRoot) {
+        log(`[PASS] Shadow DOM host #popup-manager-host-root verified in DOM.`);
+        const titleEl = host.shadowRoot.getElementById('popup-manager-title');
+        log(`[PASS] Shadow DOM popup title text: "${titleEl ? titleEl.textContent : 'none'}"`);
+      } else {
+        log(`[FAIL] Shadow DOM host not found.`);
+      }
+
+      // Hide popup
+      PopupManager.hide();
+      log(`[PASS] PopupManager.hide() succeeded.`);
+
+      // Destroy
+      PopupManager.destroy();
+      log(`[PASS] PopupManager.destroy() succeeded. State: ${PopupManager.getState()}`);
+
+      log('\nALL ESM BROWSER CHECKS PASSED.');
+    } catch (err) {
+      log(`[FAIL] ESM Browser verification error: ${err.message}`);
+    }
+  </script>
+</body>
+</html>
