@@ -19,6 +19,8 @@ GET /api/v1/public/popups?website_key={websiteKey}
   - `dist/popup-manager.esm.js`: ECMAScript module for modern bundlers and SPA frameworks.
   - `dist/popup-manager.min.js`: Standalone, minified IIFE bundle exposing `window.PopupManager` for direct browser `<script>` tag embedding.
 - **Strict Credential Separation**: Runs in untrusted client browsers. Never requires or transmits administrative JWTs, database IDs, or privileged secrets. Only public `websiteKey` strings (`wg_live_...`) are used.
+- **Robust Focus & Accessibility Management**: Centered modal popups trap keyboard focus, shift initial focus to the close control, set `aria-modal="true"` and `aria-labelledby`, and restore focus to the previously active element upon dismissal.
+- **Subtle Animations & Reduced Motion**: Fluid CSS transitions with full `@media (prefers-reduced-motion: reduce)` support.
 
 ## Configuration & Initialization
 
@@ -74,6 +76,53 @@ The SDK tracks internal lifecycle status deterministically via `RuntimeState`:
 
 Inspect the current state at any time via `PopupManager.getState()`.
 
+## Public Event System
+
+The SDK provides a typed, zero-dependency event emitter for subscribing to runtime lifecycle occurrences:
+
+```ts
+// Subscribe to an event
+PopupManager.on(eventName, callback);
+
+// Unsubscribe
+PopupManager.off(eventName, callback);
+```
+
+### Supported Events & Payloads
+
+| Event Name | Payload | Timing & Semantics |
+| :--- | :--- | :--- |
+| `popup:loaded` | `{ count: number }` | Emitted when active, schedule-eligible popups are retrieved and validated from the API. |
+| `popup:shown` | `{ popupId: number }` | Emitted only after a popup has been mounted into the DOM and is visible on screen. |
+| `popup:hidden` | `{ popupId: number }` | Emitted whenever a visible popup is unmounted from view (via programmatic `hide()` or user dismissal). |
+| `popup:closed` | `{ popupId: number, reason: 'close-button' \| 'backdrop' \| 'escape' }` | Emitted **only** when the user explicitly dismisses a popup via user interaction (close button, backdrop click, or Escape key). Always precedes `popup:hidden`. |
+| `popup:error` | `{ error: string, context: string }` | Emitted when configuration, network transport, eligibility, or rendering fails. Never leaks credentials. |
+
+### Event Usage Examples
+
+```ts
+// Track user dismissals vs programmatic hiding
+PopupManager.on('popup:closed', ({ popupId, reason }) => {
+  console.log(`User dismissed popup #${popupId} via ${reason}`);
+});
+
+PopupManager.on('popup:hidden', ({ popupId }) => {
+  console.log(`Popup #${popupId} has been removed from screen`);
+});
+
+// React to errors
+PopupManager.on('popup:error', ({ error, context }) => {
+  console.error(`Popup error in ${context}: ${error}`);
+});
+
+// Unsubscribe when no longer needed
+const onLoaded = ({ count }) => console.log(`Loaded ${count} eligible popups`);
+PopupManager.on('popup:loaded', onLoaded);
+PopupManager.off('popup:loaded', onLoaded);
+```
+
+> **Note on Lifecycle Cleanup**: Calling `PopupManager.destroy()` automatically clears all registered event subscribers.
+
 ## Public API Methods
 
 ### `PopupManager.load(): Promise<PublicPopup[]>`
@@ -81,7 +130,7 @@ Inspect the current state at any time via `PopupManager.getState()`.
 Fetches active popups from the backend delivery API and revalidates their schedule on the client.
 
 - If `autoShow: true` and eligible popups are returned, displays the first eligible popup.
-- On failure, transitions state to `ERROR`, clears retained popups, and rejects the promise.
+- On failure, transitions state to `ERROR`, clears retained popups, emits `popup:error`, and rejects the promise.
 
 ### `PopupManager.show(popupId?: number): void`
 
@@ -90,6 +139,7 @@ Renders and displays an eligible popup on screen inside the Shadow DOM container
 - If `popupId` is omitted, displays the first eligible popup in the backend ordering.
 - If `popupId` is supplied, displays that popup only if it is in the currently loaded eligible list.
 - Fails predictably without creating an empty host if no eligible popup is available.
+- Emits `popup:shown` once mounted.
 
 ```ts
 // Show default first eligible popup
@@ -101,7 +151,9 @@ PopupManager.show(42);
 
 ### `PopupManager.hide(): void`
 
-Hides the currently rendered popup, removes its backdrop and keyboard listeners, and clears shadow content. Loaded popup data remains available for future `show()` calls.
+Hides the currently rendered popup, removes its backdrop, clears keyboard listeners, and restores focus to the previously active element if applicable. Loaded popup data remains available for future `show()` calls.
+
+- Emits `popup:hidden`. Does **not** emit `popup:closed`.
 
 ```ts
 PopupManager.hide();
@@ -117,11 +169,27 @@ const freshPopups = await PopupManager.refresh();
 
 ### `PopupManager.destroy(): void`
 
-Tears down the active runtime session, removes the `#popup-manager-host-root` element from the DOM, and unbinds all listeners.
+Tears down the active runtime session, removes the `#popup-manager-host-root` element from the DOM, unbinds all listeners, and releases all event subscribers.
 
 ```ts
 PopupManager.destroy();
 ```
+
+## Accessibility & Keyboard Navigation
+
+The SDK adheres to WAI-ARIA authoring practices:
+
+- **Initial Focus**: When a `center` modal opens, initial focus moves immediately to the modal close button.
+- **Focus Trapping**: Keyboard navigation (`Tab` and `Shift+Tab`) is trapped within the active modal. Tabbing past the last focusable element wraps to the first, and Shift+Tabbing wraps backwards to the last.
+- **Focus Restoration**: When the modal is dismissed (via close button, Escape, or backdrop click), keyboard focus safely returns to the element that was focused prior to modal open. If that element was removed from the document, the SDK safely ignores restoration without throwing.
+- **Escape Dismissal**: Pressing the `Escape` key dismisses the centered modal.
+- **Non-Modal Layouts**: `top-banner`, `bottom-left`, and `bottom-right` layouts use `role="region"` and do not trap keyboard focus or disrupt the host page's tab sequence.
+
+## Motion & Viewport Hardening
+
+- **Subtle Animations**: Entrance and exit transitions are CSS-driven (opacity and scale for modal; slide and fade for banners and corners).
+- **Reduced Motion**: Respects `@media (prefers-reduced-motion: reduce)` by disabling transition and animation durations.
+- **Viewport Hardening**: All layouts include responsive constraints, mobile safe-area insets (`env(safe-area-inset-*)`), and overscroll containment.
 
 ## Supported Positions
 
@@ -129,10 +197,10 @@ The SDK renders popups in four viewport positions:
 
 | Position | Layout & Presentation | Accessibility Semantics |
 | :--- | :--- | :--- |
-| `center` | Centered modal card with semi-opaque backdrop overlay (`rgba(15, 23, 42, 0.55)`). Responsive max-width (540px) with scrollable body. | `role="dialog"`, `aria-modal="true"`. Backdrop click and `Escape` key dismissal. |
-| `top-banner` | Full-width sticky/fixed header banner spanning viewport top. Max height 40vh with scrollable body. | `role="region"`, `aria-label="Promotional banner"`. |
-| `bottom-left` | Floating toast card pinned to the lower-left viewport corner (bottom: 24px, left: 24px). | `role="region"`, `aria-label="Promotional notification"`. |
-| `bottom-right` | Floating toast card pinned to the lower-right viewport corner (bottom: 24px, right: 24px). | `role="region"`, `aria-label="Promotional notification"`. |
+| `center` | Centered modal card with semi-opaque backdrop overlay (`rgba(15, 23, 42, 0.55)`). Responsive max-width (540px) with scrollable body. | `role="dialog"`, `aria-modal="true"`. Focus trapping & restoration. Backdrop click and `Escape` key dismissal. |
+| `top-banner` | Full-width sticky/fixed header banner spanning viewport top with safe area insets. Max height 40vh with scrollable body. | `role="region"`, `aria-label="Promotional banner"`. Non-modal. |
+| `bottom-left` | Floating toast card pinned to the lower-left viewport corner (bottom: 24px, left: 24px). | `role="region"`, `aria-label="Promotional notification"`. Non-modal. |
+| `bottom-right` | Floating toast card pinned to the lower-right viewport corner (bottom: 24px, right: 24px). | `role="region"`, `aria-label="Promotional notification"`. Non-modal. |
 
 ## HTML Security & Sanitization
 
@@ -153,7 +221,7 @@ npm install
 # Type-check TypeScript sources
 npm run typecheck
 
-# Run all test suites (configuration, api client, eligibility, runtime, sanitization, renderer, smoke)
+# Run all test suites (config, api-client, eligibility, runtime, sanitization, renderer, accessibility, events, smoke)
 npm test
 
 # Build ESM and minified IIFE distributions

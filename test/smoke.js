@@ -48,6 +48,8 @@ assert.strictEqual(typeof context.PopupManager.show, 'function', 'PopupManager.s
 assert.strictEqual(typeof context.PopupManager.hide, 'function', 'PopupManager.hide must be a function in IIFE');
 assert.strictEqual(typeof context.PopupManager.destroy, 'function', 'PopupManager.destroy must be a function in IIFE');
 assert.strictEqual(typeof context.PopupManager.getState, 'function', 'PopupManager.getState must be a function in IIFE');
+assert.strictEqual(typeof context.PopupManager.on, 'function', 'PopupManager.on must be a function in IIFE');
+assert.strictEqual(typeof context.PopupManager.off, 'function', 'PopupManager.off must be a function in IIFE');
 
 // Verify calling init() in IIFE context succeeds
 context.PopupManager.init({
@@ -92,12 +94,17 @@ assert.strictEqual(typeof esmModule.PopupManager.show, 'function', 'ESM PopupMan
 assert.strictEqual(typeof esmModule.PopupManager.hide, 'function', 'ESM PopupManager.hide must be a function');
 assert.strictEqual(typeof esmModule.PopupManager.destroy, 'function', 'ESM PopupManager.destroy must be a function');
 assert.strictEqual(typeof esmModule.PopupManager.getState, 'function', 'ESM PopupManager.getState must be a function');
+assert.strictEqual(typeof esmModule.PopupManager.on, 'function', 'ESM PopupManager.on must be a function');
+assert.strictEqual(typeof esmModule.PopupManager.off, 'function', 'ESM PopupManager.off must be a function');
 assert.strictEqual(typeof esmModule.load, 'function', 'ESM load named export must be a function');
 assert.strictEqual(typeof esmModule.refresh, 'function', 'ESM refresh named export must be a function');
 assert.strictEqual(typeof esmModule.show, 'function', 'ESM show named export must be a function');
 assert.strictEqual(typeof esmModule.hide, 'function', 'ESM hide named export must be a function');
 assert.strictEqual(typeof esmModule.destroy, 'function', 'ESM destroy named export must be a function');
 assert.strictEqual(typeof esmModule.getState, 'function', 'ESM getState named export must be a function');
+assert.strictEqual(typeof esmModule.on, 'function', 'ESM on named export must be a function');
+assert.strictEqual(typeof esmModule.off, 'function', 'ESM off named export must be a function');
+assert.strictEqual(typeof esmModule.EventEmitter, 'function', 'ESM EventEmitter must be exported');
 assert.strictEqual(typeof esmModule.filterEligiblePopups, 'function', 'ESM filterEligiblePopups must be exported');
 assert.strictEqual(typeof esmModule.sanitizeHtml, 'function', 'ESM sanitizeHtml must be exported');
 assert.strictEqual(typeof esmModule.PopupRenderer, 'function', 'ESM PopupRenderer must be exported');

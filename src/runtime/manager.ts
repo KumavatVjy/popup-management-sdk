@@ -4,10 +4,11 @@ import { ApiClient } from '../client/api-client';
 import { RuntimeState } from './state';
 import { filterEligiblePopups } from './eligibility';
 import { PopupRenderer } from '../renderer/shadow-dom';
+import { EventEmitter, SDKEvent, EventCallback, PopupDismissalReason } from '../events/event-emitter';
 
 /**
  * RuntimeManager orchestrates SDK lifecycle states, active network transport,
- * client-side schedule revalidation, rendering display, and teardown.
+ * client-side schedule revalidation, rendering display, teardown, and event emissions.
  */
 export class RuntimeManager {
   private state: RuntimeState = 'UNINITIALIZED';
@@ -16,6 +17,21 @@ export class RuntimeManager {
   private popups: PublicPopup[] = [];
   private generationId: number = 0;
   private renderer: PopupRenderer = new PopupRenderer();
+  private events: EventEmitter = new EventEmitter();
+
+  /**
+   * Registers a subscriber callback for an SDK lifecycle event.
+   */
+  public on<E extends SDKEvent>(event: E, callback: EventCallback<E>): void {
+    this.events.on(event, callback);
+  }
+
+  /**
+   * Removes a subscriber callback for an SDK lifecycle event.
+   */
+  public off<E extends SDKEvent>(event: E, callback: EventCallback<E>): void {
+    this.events.off(event, callback);
+  }
 
   /**
    * Returns the current lifecycle state of the SDK runtime.
@@ -81,11 +97,15 @@ export class RuntimeManager {
    */
   public async load(): Promise<PublicPopup[]> {
     if (this.state === 'DESTROYED') {
-      throw new ConfigurationError('PopupManager has been destroyed. Call init() before calling load()');
+      const err = new ConfigurationError('PopupManager has been destroyed. Call init() before calling load()');
+      this.events.emit('popup:error', { error: err.message, context: 'runtime' });
+      throw err;
     }
 
     if (this.state === 'UNINITIALIZED' || !this.config || !this.client) {
-      throw new ConfigurationError('PopupManager must be initialized before calling load()');
+      const err = new ConfigurationError('PopupManager must be initialized before calling load()');
+      this.events.emit('popup:error', { error: err.message, context: 'configuration' });
+      throw err;
     }
 
     const currentGeneration = ++this.generationId;
@@ -100,6 +120,9 @@ export class RuntimeManager {
         this.state = 'ERROR';
         this.popups = [];
         this.renderer.hide();
+
+        const message = error instanceof Error ? error.message : 'Failed to fetch popups';
+        this.events.emit('popup:error', { error: message, context: 'network' });
       }
       throw error;
     }
@@ -111,14 +134,19 @@ export class RuntimeManager {
       this.popups = eligible;
       this.state = eligible.length > 0 ? 'READY' : 'IDLE';
 
+      // Emit popup:loaded event with eligible count
+      this.events.emit('popup:loaded', { count: eligible.length });
+
       // If autoShow is configured and eligible popups exist, display the first popup
       if (this.config.autoShow) {
         if (eligible.length > 0) {
           if (typeof document !== 'undefined') {
             try {
               this.show();
-            } catch {
+            } catch (err) {
               // Gracefully handle render failures during autoShow
+              const message = err instanceof Error ? err.message : 'Failed to auto-show popup';
+              this.events.emit('popup:error', { error: message, context: 'rendering' });
             }
           }
         } else {
@@ -153,40 +181,74 @@ export class RuntimeManager {
    */
   public show(popupId?: number): void {
     if (this.state === 'DESTROYED') {
-      throw new ConfigurationError('PopupManager has been destroyed. Call init() before calling show()');
+      const err = new ConfigurationError('PopupManager has been destroyed. Call init() before calling show()');
+      this.events.emit('popup:error', { error: err.message, context: 'runtime' });
+      throw err;
     }
 
     if (this.state === 'UNINITIALIZED' || !this.config) {
-      throw new ConfigurationError('PopupManager must be initialized before calling show()');
+      const err = new ConfigurationError('PopupManager must be initialized before calling show()');
+      this.events.emit('popup:error', { error: err.message, context: 'configuration' });
+      throw err;
     }
 
     if (typeof document === 'undefined') {
-      throw new Error('DOM environment is required to render popups');
+      const err = new Error('DOM environment is required to render popups');
+      this.events.emit('popup:error', { error: err.message, context: 'rendering' });
+      throw err;
     }
 
     if (this.popups.length === 0) {
-      throw new Error('No eligible popups available to display');
+      const err = new Error('No eligible popups available to display');
+      this.events.emit('popup:error', { error: err.message, context: 'eligibility' });
+      throw err;
     }
 
     let target: PublicPopup;
     if (popupId !== undefined) {
       const found = this.popups.find((p) => p.id === popupId);
       if (!found) {
-        throw new Error(`Popup with ID ${popupId} is not available or ineligible`);
+        const err = new Error(`Popup with ID ${popupId} is not available or ineligible`);
+        this.events.emit('popup:error', { error: err.message, context: 'eligibility' });
+        throw err;
       }
       target = found;
     } else {
       target = this.popups[0]!;
     }
 
-    this.renderer.render(target);
+    const targetId = target.id;
+
+    try {
+      this.renderer.render(target, {
+        onClose: (reason: PopupDismissalReason) => {
+          // 1. User dismissal: emit popup:closed first with the reason
+          this.events.emit('popup:closed', { popupId: targetId, reason });
+        },
+        onHide: () => {
+          // 2. Then emit popup:hidden
+          this.events.emit('popup:hidden', { popupId: targetId });
+        },
+      });
+
+      // Emit popup:shown once successfully mounted
+      this.events.emit('popup:shown', { popupId: targetId });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to render popup';
+      this.events.emit('popup:error', { error: message, context: 'rendering' });
+      throw err;
+    }
   }
 
   /**
    * Hides the currently rendered popup and removes its backdrop and event listeners.
    */
   public hide(): void {
-    this.renderer.hide();
+    const visiblePopup = this.renderer.getVisiblePopup();
+    if (visiblePopup) {
+      // Programmatic hide: renderer will invoke onHide -> emits popup:hidden (no popup:closed)
+      this.renderer.hide();
+    }
   }
 
   /**
@@ -199,5 +261,7 @@ export class RuntimeManager {
     this.popups = [];
     this.config = null;
     this.client = null;
+    // Release registered event callbacks
+    this.events.clear();
   }
 }

@@ -281,8 +281,24 @@
       }
     });
 
-    // Check SDK on load
+    // Register SDK Lifecycle Event Listeners
     if (typeof window.PopupManager !== 'undefined') {
+      window.PopupManager.on('popup:loaded', (payload) => {
+        log('EVENT [popup:loaded]', payload);
+      });
+      window.PopupManager.on('popup:shown', (payload) => {
+        log('EVENT [popup:shown]', payload);
+      });
+      window.PopupManager.on('popup:hidden', (payload) => {
+        log('EVENT [popup:hidden]', payload);
+      });
+      window.PopupManager.on('popup:closed', (payload) => {
+        log('EVENT [popup:closed]', payload);
+      });
+      window.PopupManager.on('popup:error', (payload) => {
+        log('EVENT [popup:error]', payload);
+      });
+
       log('PopupManager global loaded successfully (v' + window.PopupManager.version + ')');
     } else {
       log('Warning: window.PopupManager not found. Ensure dist/popup-manager.min.js is built.');

@@ -10,7 +10,20 @@ import { RuntimeState, RuntimeStates } from './runtime/state';
 import { filterEligiblePopups } from './runtime/eligibility';
 import { RuntimeManager } from './runtime/manager';
 import { sanitizeHtml } from './renderer/sanitize';
-import { PopupRenderer, HOST_ELEMENT_ID } from './renderer/shadow-dom';
+import { PopupRenderer, HOST_ELEMENT_ID, RenderCallbacks } from './renderer/shadow-dom';
+import {
+  EventEmitter,
+  SDKEvent,
+  EventCallback,
+  PopupLoadedPayload,
+  PopupShownPayload,
+  PopupHiddenPayload,
+  PopupClosedPayload,
+  PopupErrorPayload,
+  PopupDismissalReason,
+  PopupErrorContext,
+  SDKEventPayloadMap,
+} from './events/event-emitter';
 
 /**
  * Current version of the Popup Manager SDK.
@@ -122,6 +135,27 @@ export const PopupManager = {
   getState(): RuntimeState {
     return runtimeManager.getState();
   },
+
+  /**
+   * Registers a subscriber callback for an SDK lifecycle event.
+   *
+   * Supported events:
+   * - 'popup:loaded': Fired when eligible popups are retrieved ({ count })
+   * - 'popup:shown': Fired when a popup is mounted and visible ({ popupId })
+   * - 'popup:hidden': Fired when a popup is hidden from view ({ popupId })
+   * - 'popup:closed': Fired when user explicitly dismisses a popup ({ popupId, reason })
+   * - 'popup:error': Fired on configuration, network, or rendering failure ({ error, context })
+   */
+  on<E extends SDKEvent>(event: E, callback: EventCallback<E>): void {
+    runtimeManager.on(event, callback);
+  },
+
+  /**
+   * Unregisters a previously registered subscriber callback.
+   */
+  off<E extends SDKEvent>(event: E, callback: EventCallback<E>): void {
+    runtimeManager.off(event, callback);
+  },
 };
 
 /**
@@ -159,6 +193,18 @@ export const destroy = (): void => PopupManager.destroy();
  */
 export const getState = (): RuntimeState => PopupManager.getState();
 
+/**
+ * Direct function export of on for root namespace convenience.
+ */
+export const on = <E extends SDKEvent>(event: E, callback: EventCallback<E>): void =>
+  PopupManager.on(event, callback);
+
+/**
+ * Direct function export of off for root namespace convenience.
+ */
+export const off = <E extends SDKEvent>(event: E, callback: EventCallback<E>): void =>
+  PopupManager.off(event, callback);
+
 export {
   PopupManagerConfig,
   NormalizedPopupManagerConfig,
@@ -175,5 +221,17 @@ export {
   sanitizeHtml,
   PopupRenderer,
   HOST_ELEMENT_ID,
+  RenderCallbacks,
+  EventEmitter,
+  SDKEvent,
+  EventCallback,
+  PopupLoadedPayload,
+  PopupShownPayload,
+  PopupHiddenPayload,
+  PopupClosedPayload,
+  PopupErrorPayload,
+  PopupDismissalReason,
+  PopupErrorContext,
+  SDKEventPayloadMap,
 };
 export default PopupManager;

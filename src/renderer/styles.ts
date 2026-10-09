@@ -16,6 +16,49 @@ export const SHADOW_STYLES = /* css */ `
     box-sizing: border-box;
   }
 
+  /* Keyframe Animations */
+  @keyframes pm-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes pm-center-scale-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -48%) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  @keyframes pm-banner-slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pm-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   /* Backdrop Overlay (Center Modal) */
   .popup-manager-backdrop {
     position: fixed;
@@ -26,7 +69,7 @@ export const SHADOW_STYLES = /* css */ `
     background-color: rgba(15, 23, 42, 0.55);
     z-index: 2147483646;
     backdrop-filter: blur(2px);
-    transition: opacity 0.2s ease-in-out;
+    animation: pm-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   /* General Position Container */
@@ -44,40 +87,53 @@ export const SHADOW_STYLES = /* css */ `
     width: calc(100vw - 32px);
     max-width: 540px;
     max-height: calc(100vh - 64px);
+    max-height: calc(100dvh - 64px);
     display: flex;
     flex-direction: column;
+    animation: pm-center-scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   /* 2. Top Banner */
   .popup-manager-position-top-banner {
     position: fixed;
     top: 0;
+    top: env(safe-area-inset-top, 0px);
     left: 0;
     width: 100vw;
     max-height: 40vh;
+    max-height: 40dvh;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    animation: pm-banner-slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   /* 3. Bottom-Left Card */
   .popup-manager-position-bottom-left {
     position: fixed;
     bottom: 24px;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
     left: 24px;
+    left: calc(24px + env(safe-area-inset-left, 0px));
     width: calc(100vw - 48px);
     max-width: 420px;
     max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
     box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.12);
+    animation: pm-slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   /* 4. Bottom-Right Card */
   .popup-manager-position-bottom-right {
     position: fixed;
     bottom: 24px;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
     right: 24px;
+    right: calc(24px + env(safe-area-inset-right, 0px));
     width: calc(100vw - 48px);
     max-width: 420px;
     max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
     box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.12);
+    animation: pm-slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   /* Popup Card */
@@ -91,6 +147,7 @@ export const SHADOW_STYLES = /* css */ `
     display: flex;
     flex-direction: column;
     width: 100%;
+    max-height: inherit;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
   }
 
@@ -166,6 +223,8 @@ export const SHADOW_STYLES = /* css */ `
     line-height: 1.6;
     color: #334155;
     flex-grow: 1;
+    min-height: 0;
+    overscroll-behavior: contain;
   }
 
   .popup-manager-position-top-banner .popup-manager-body {
@@ -230,6 +289,7 @@ export const SHADOW_STYLES = /* css */ `
     .popup-manager-position-center {
       width: calc(100vw - 24px);
       max-height: calc(100vh - 32px);
+      max-height: calc(100dvh - 32px);
     }
 
     .popup-manager-position-bottom-left,
@@ -239,6 +299,34 @@ export const SHADOW_STYLES = /* css */ `
       bottom: 12px;
       width: calc(100vw - 24px);
       max-width: none;
+    }
+  }
+
+  /* Reduced-motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .popup-manager-backdrop,
+    .popup-manager-position-center,
+    .popup-manager-position-top-banner,
+    .popup-manager-position-bottom-left,
+    .popup-manager-position-bottom-right {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    .popup-manager-position-center {
+      transform: translate(-50%, -50%) !important;
+    }
+
+    .popup-manager-position-top-banner,
+    .popup-manager-position-bottom-left,
+    .popup-manager-position-bottom-right {
+      transform: none !important;
+    }
+
+    * {
+      transition-duration: 0.001ms !important;
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
     }
   }
 `;
