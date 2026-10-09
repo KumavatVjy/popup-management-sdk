@@ -12,28 +12,41 @@
 <body>
   <h1>Popup Manager SDK — Browser Smoke Test</h1>
   <p id="status">Loading SDK...</p>
+  <pre id="output"></pre>
 
   <script src="dist/popup-manager.min.js"></script>
   <script>
     const statusEl = document.getElementById('status');
-    try {
-      if (typeof window.PopupManager !== 'undefined' && window.PopupManager.version === '0.1.0' && typeof window.PopupManager.init === 'function') {
-        window.PopupManager.init({
-          websiteKey: 'wg_live_browser_smoke_test',
-          apiBaseUrl: window.location.origin || 'http://localhost:8082',
-          autoLoad: true,
-          autoShow: true,
-        });
-        statusEl.className = 'status-pass';
-        statusEl.textContent = 'PASS: window.PopupManager detected (version ' + window.PopupManager.version + ') and initialized successfully';
-      } else {
+    const outputEl = document.getElementById('output');
+
+    async function runSmokeTest() {
+      try {
+        if (
+          typeof window.PopupManager !== 'undefined' &&
+          window.PopupManager.version === '0.1.0' &&
+          typeof window.PopupManager.init === 'function' &&
+          typeof window.PopupManager.load === 'function'
+        ) {
+          window.PopupManager.init({
+            websiteKey: 'wg_live_browser_smoke_test',
+            apiBaseUrl: window.location.origin || 'http://localhost:8082',
+            autoLoad: true,
+            autoShow: true,
+          });
+
+          statusEl.className = 'status-pass';
+          statusEl.textContent = 'PASS: window.PopupManager detected (v' + window.PopupManager.version + ') and initialized with load() method available';
+        } else {
+          statusEl.className = 'status-fail';
+          statusEl.textContent = 'FAIL: window.PopupManager global was not found or init/load methods are missing';
+        }
+      } catch (e) {
         statusEl.className = 'status-fail';
-        statusEl.textContent = 'FAIL: window.PopupManager global was not found or init is missing';
+        statusEl.textContent = 'FAIL: Error during test: ' + e.message;
       }
-    } catch (e) {
-      statusEl.className = 'status-fail';
-      statusEl.textContent = 'FAIL: Error during initialization: ' + e.message;
     }
+
+    runSmokeTest();
   </script>
 </body>
 </html>

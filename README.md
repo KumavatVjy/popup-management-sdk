@@ -57,7 +57,34 @@ Or via direct browser script tag:
 | `autoShow` | `boolean` | No | `true` | Whether to automatically display eligible popups after loading. |
 | `debug` | `boolean` | No | `false` | Enables verbose diagnostic logging for troubleshooting. |
 
-> **Note on Current Scope**: In Lesson 3B, `PopupManager.init(config)` validates options, resolves defaults, and stores the normalized configuration internally. API fetching, popup evaluation, and Shadow DOM rendering are configuration flags only at this stage and will be implemented in subsequent lessons.
+## Loading Popups
+
+Retrieve eligible, active popups from the backend using `PopupManager.load()`:
+
+```ts
+// After PopupManager.init(...)
+try {
+  const popups = await PopupManager.load();
+  console.log(`Retrieved ${popups.length} eligible popup(s)`);
+} catch (error) {
+  console.error('Failed to load popups:', error.message);
+}
+```
+
+### Public Popup Data Model
+
+Each returned `PublicPopup` object conforms to the sanitized delivery contract:
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `number` | Numeric identifier of the popup. |
+| `title` | `string` | Title of the popup campaign. |
+| `content` | `string` | Popup HTML or text body. |
+| `position` | `PopupPosition` | Placement (`center`, `top-banner`, `bottom-left`, or `bottom-right`). |
+| `start_time` | `string \| null` | Scheduled display start time (ISO 8601) or null. |
+| `end_time` | `string \| null` | Scheduled display expiration time (ISO 8601) or null. |
+
+> **Note on Current Scope**: In Lesson 3C, `PopupManager.load()` performs network transport, error normalization, and response validation. Rendering popups to the DOM, Shadow DOM encapsulation, scheduling evaluation, and trigger listeners belong to subsequent lessons.
 
 ## Development Scripts
 
