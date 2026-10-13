@@ -121,7 +121,7 @@ PopupManager.on('popup:loaded', onLoaded);
 PopupManager.off('popup:loaded', onLoaded);
 ```
 
-> **Note on Lifecycle Cleanup**: Calling `PopupManager.destroy()` automatically clears all registered event subscribers.
+> **Note on Lifecycle Cleanup & Reentrancy Safety**: Calling `PopupManager.destroy()` automatically clears all registered event subscribers. Furthermore, the runtime lifecycle is hardened against synchronous reentrancy: subscribers to `popup:loaded` can safely destroy or reinitialize the SDK without unhandled promise rejections, null property errors, or stale popups being rendered.
 
 ## Public API Methods
 

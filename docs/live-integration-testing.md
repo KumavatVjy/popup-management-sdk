@@ -47,8 +47,8 @@ python -m http.server 5173
 ```
 
 Test pages are available at:
-- `http://localhost:5173/smoke-test.html` (Interactive harness using standalone IIFE bundle)
-- `http://localhost:5173/esm-test.html` (Automated browser test using ESM bundle)
+- `http://localhost:5173/smoke-test.html` (Interactive harness using standalone IIFE bundle with input form)
+- `http://localhost:5173/esm-test.html` (Interactive browser verification harness using ESM bundle with configurable form)
 
 ---
 
@@ -67,7 +67,8 @@ Create isolated test records in the local database:
    - Different website tenant popup (verifying tenant isolation).
 
 ### Secure Key Handling
-- Never hardcode or commit production website keys or admin tokens.
+- Never hardcode or commit real or stale website keys in test harnesses (`esm-test.html`, `smoke-test.html`).
+- Operators enter their own active website key into the form on test pages; keys are never stored in localStorage, cookies, or printed to diagnostic logs.
 - Public delivery requests access popups exclusively through `GET /api/v1/public/popups?website_key={key}`.
 
 ---
