@@ -351,4 +351,88 @@ await runAsyncTest('12. In-flight request from previous session does not emit st
   assert.strictEqual(shownCalls, 0, 'No popup:shown events should be emitted from stale session');
 });
 
+// 13. Synchronous destroy inside popup:loaded subscriber does not cause unhandled rejection or stale rendering
+await runAsyncTest('13. Synchronous destroy inside popup:loaded subscriber safely aborts rendering without error', async (pm) => {
+  globalThis.fetch = async () => createMockResponse(200, { success: true, message: 'OK', data: mockPopups });
+
+  let shownEvents = 0;
+  let loadedEvents = 0;
+  let errorEvents = 0;
+
+  pm.on('popup:loaded', () => {
+    loadedEvents++;
+    // Synchronously destroy the SDK inside the subscriber callback
+    pm.destroy();
+  });
+
+  pm.on('popup:shown', () => {
+    shownEvents++;
+  });
+
+  pm.on('popup:error', () => {
+    errorEvents++;
+  });
+
+  pm.init({
+    websiteKey: 'wg_live_events',
+    apiBaseUrl: 'http://localhost:8082',
+    autoLoad: false,
+    autoShow: true, // autoShow is enabled to verify it does NOT attempt to show after destroy
+  });
+
+  // load() should resolve without throwing TypeError or unhandled rejection
+  const result = await pm.load();
+
+  assert.strictEqual(loadedEvents, 1, 'popup:loaded should have fired once');
+  assert.strictEqual(shownEvents, 0, 'No popup:shown event should fire after synchronous destroy');
+  assert.strictEqual(errorEvents, 0, 'No popup:error event should fire as a result of clean destroy');
+  assert.strictEqual(pm.getState(), 'DESTROYED', 'State should be DESTROYED');
+  assert.strictEqual(result.length, mockPopups.length, 'load() promise still resolves with eligible popups');
+
+  // Verify no host element exists in the DOM
+  const host = document.getElementById('popup-manager-host-root');
+  assert.strictEqual(host, null, 'No DOM host should be mounted after synchronous destroy');
+});
+
+// 14. Synchronous reinitialization inside popup:loaded subscriber preserves new session without stale render
+await runAsyncTest('14. Synchronous reinitialization inside popup:loaded subscriber safely isolates sessions', async (pm) => {
+  let fetchCount = 0;
+  globalThis.fetch = async () => {
+    fetchCount++;
+    return createMockResponse(200, { success: true, message: 'OK', data: mockPopups });
+  };
+
+  let shownEvents = [];
+
+  pm.on('popup:shown', (payload) => {
+    shownEvents.push(payload.popupId);
+  });
+
+  pm.on('popup:loaded', (payload) => {
+    // Synchronously reinitialize with new config
+    pm.init({
+      websiteKey: 'wg_live_reinit_session',
+      apiBaseUrl: 'http://localhost:8082',
+      autoLoad: false,
+      autoShow: false,
+    });
+  });
+
+  pm.init({
+    websiteKey: 'wg_live_initial_session',
+    apiBaseUrl: 'http://localhost:8082',
+    autoLoad: false,
+    autoShow: true, // First session wanted autoShow
+  });
+
+  await pm.load();
+
+  // The first session's autoShow must NOT have fired on the newly initialized session
+  assert.strictEqual(shownEvents.length, 0, 'Old session must not auto-show after synchronous reinit');
+  assert.strictEqual(pm.getState(), 'CONFIGURED', 'Runtime state must reflect new session state (CONFIGURED)');
+
+  pm.destroy();
+});
+
 console.log(`\nAll ${testsPassed} Public Event System tests passed successfully!`);
+

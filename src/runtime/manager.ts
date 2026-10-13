@@ -137,6 +137,11 @@ export class RuntimeManager {
       // Emit popup:loaded event with eligible count
       this.events.emit('popup:loaded', { count: eligible.length });
 
+      // Guard against synchronous reentrancy: a subscriber might have destroyed or reinitialized the SDK
+      if (this.generationId !== currentGeneration || (this.state as RuntimeState) === 'DESTROYED' || !this.config) {
+        return eligible;
+      }
+
       // If autoShow is configured and eligible popups exist, display the first popup
       if (this.config.autoShow) {
         if (eligible.length > 0) {
@@ -218,21 +223,30 @@ export class RuntimeManager {
     }
 
     const targetId = target.id;
+    const currentGeneration = this.generationId;
 
     try {
       this.renderer.render(target, {
         onClose: (reason: PopupDismissalReason) => {
+          if (this.state === 'DESTROYED' || this.generationId !== currentGeneration) {
+            return;
+          }
           // 1. User dismissal: emit popup:closed first with the reason
           this.events.emit('popup:closed', { popupId: targetId, reason });
         },
         onHide: () => {
+          if (this.state === 'DESTROYED' || this.generationId !== currentGeneration) {
+            return;
+          }
           // 2. Then emit popup:hidden
           this.events.emit('popup:hidden', { popupId: targetId });
         },
       });
 
-      // Emit popup:shown once successfully mounted
-      this.events.emit('popup:shown', { popupId: targetId });
+      // Emit popup:shown once successfully mounted if session is still active
+      if ((this.state as RuntimeState) !== 'DESTROYED' && this.generationId === currentGeneration) {
+        this.events.emit('popup:shown', { popupId: targetId });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to render popup';
       this.events.emit('popup:error', { error: message, context: 'rendering' });
