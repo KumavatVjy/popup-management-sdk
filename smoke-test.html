@@ -145,7 +145,7 @@
     <div class="card">
       <div class="form-group">
         <label for="websiteKeyInput">Website Key (public integration identifier):</label>
-        <input type="text" id="websiteKeyInput" value="wg_live_test_site" placeholder="wg_live_...">
+        <input type="text" id="websiteKeyInput" value="" placeholder="wg_live_..." autocomplete="off">
       </div>
 
       <div class="form-group">
@@ -220,6 +220,10 @@
     document.getElementById('initBtn').addEventListener('click', () => {
       try {
         const key = websiteKeyInput.value.trim();
+        if (!key) {
+          log('Validation error: Website key cannot be empty. Please enter a valid website key.');
+          return;
+        }
         const base = apiBaseUrlInput.value.trim();
         window.PopupManager.init({
           websiteKey: key,

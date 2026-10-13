@@ -10,6 +10,56 @@
       color: #f8fafc;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       padding: 24px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.5rem;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.95rem;
+    }
+    input[type="text"]:focus {
+      border-color: #3b82f6;
+      outline: none;
+    }
+    button {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    button:hover {
+      background: #2563eb;
     }
     #output {
       background: #1e293b;
@@ -17,75 +67,124 @@
       border-radius: 8px;
       font-family: monospace;
       white-space: pre-wrap;
+      font-size: 0.875rem;
+      border: 1px solid #334155;
+    }
+    .error-msg {
+      color: #f87171;
+      font-weight: 600;
+      margin-top: 8px;
     }
   </style>
 </head>
 <body>
   <h1>ESM Distribution Live Browser Verification</h1>
-  <div id="output">Loading ESM module...</div>
+  <p style="color: #94a3b8; font-size: 0.9rem;">
+    Test harness for verifying ES Module packaging, lifecycle states, and Shadow DOM rendering in a browser environment.
+  </p>
+
+  <div class="card">
+    <div class="form-group">
+      <label for="websiteKeyInput">Website Key (public integration identifier):</label>
+      <input type="text" id="websiteKeyInput" placeholder="Enter website key (e.g. wg_live_...)" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label for="apiBaseUrlInput">API Base URL:</label>
+      <input type="text" id="apiBaseUrlInput" value="http://localhost:8082" placeholder="http://localhost:8082">
+    </div>
+    <button id="runBtn" type="button">Run ESM Verification</button>
+    <div id="validationMsg" class="error-msg" style="display: none;"></div>
+  </div>
+
+  <div id="output">Ready. Enter a website key above and click "Run ESM Verification".</div>
 
   <script type="module">
     const output = document.getElementById('output');
+    const runBtn = document.getElementById('runBtn');
+    const keyInput = document.getElementById('websiteKeyInput');
+    const urlInput = document.getElementById('apiBaseUrlInput');
+    const valMsg = document.getElementById('validationMsg');
+
     function log(text) {
       output.textContent += '\n' + text;
       console.log(text);
     }
 
-    try {
-      // Import the built ESM module directly
-      const { PopupManager, SDK_VERSION } = await import('/dist/popup-manager.esm.js');
-      log(`[PASS] ESM module imported successfully. SDK_VERSION: ${SDK_VERSION}`);
+    runBtn.addEventListener('click', async () => {
+      valMsg.style.display = 'none';
+      valMsg.textContent = '';
 
-      let loadedCount = 0;
-      let shownPopupId = null;
+      const websiteKey = keyInput.value.trim();
+      const apiBaseUrl = urlInput.value.trim() || 'http://localhost:8082';
 
-      PopupManager.on('popup:loaded', (payload) => {
-        loadedCount = payload.count;
-        log(`[PASS] EVENT popup:loaded emitted with count: ${payload.count}`);
-      });
-
-      PopupManager.on('popup:shown', (payload) => {
-        shownPopupId = payload.popupId;
-        log(`[PASS] EVENT popup:shown emitted for popupId: ${payload.popupId}`);
-      });
-
-      PopupManager.init({
-        websiteKey: 'wg_live_test_integration_secret_key_001',
-        apiBaseUrl: 'http://localhost:8082',
-        autoLoad: false,
-        autoShow: false,
-      });
-
-      log(`[PASS] PopupManager.init() succeeded. State: ${PopupManager.getState()}`);
-
-      const popups = await PopupManager.load();
-      log(`[PASS] PopupManager.load() resolved with ${popups.length} popups`);
-
-      // Test showing center modal (id: 901)
-      PopupManager.show(901);
-      log(`[PASS] PopupManager.show(901) invoked. Visible: ${PopupManager.getState()}`);
-
-      const host = document.getElementById('popup-manager-host-root');
-      if (host && host.shadowRoot) {
-        log(`[PASS] Shadow DOM host #popup-manager-host-root verified in DOM.`);
-        const titleEl = host.shadowRoot.getElementById('popup-manager-title');
-        log(`[PASS] Shadow DOM popup title text: "${titleEl ? titleEl.textContent : 'none'}"`);
-      } else {
-        log(`[FAIL] Shadow DOM host not found.`);
+      if (!websiteKey) {
+        valMsg.textContent = 'Validation error: Website key cannot be empty. Please enter a valid website key.';
+        valMsg.style.display = 'block';
+        return;
       }
 
-      // Hide popup
-      PopupManager.hide();
-      log(`[PASS] PopupManager.hide() succeeded.`);
+      output.textContent = 'Running ESM verification...';
 
-      // Destroy
-      PopupManager.destroy();
-      log(`[PASS] PopupManager.destroy() succeeded. State: ${PopupManager.getState()}`);
+      try {
+        // Import the built ESM module directly
+        const { PopupManager, SDK_VERSION } = await import('./dist/popup-manager.esm.js');
+        log(`[PASS] ESM module imported successfully. SDK_VERSION: ${SDK_VERSION}`);
 
-      log('\nALL ESM BROWSER CHECKS PASSED.');
-    } catch (err) {
-      log(`[FAIL] ESM Browser verification error: ${err.message}`);
-    }
+        let loadedCount = 0;
+        let shownPopupId = null;
+
+        PopupManager.on('popup:loaded', (payload) => {
+          loadedCount = payload.count;
+          log(`[PASS] EVENT popup:loaded emitted with count: ${payload.count}`);
+        });
+
+        PopupManager.on('popup:shown', (payload) => {
+          shownPopupId = payload.popupId;
+          log(`[PASS] EVENT popup:shown emitted for popupId: ${payload.popupId}`);
+        });
+
+        PopupManager.init({
+          websiteKey: websiteKey,
+          apiBaseUrl: apiBaseUrl,
+          autoLoad: false,
+          autoShow: false,
+        });
+
+        log(`[PASS] PopupManager.init() succeeded. State: ${PopupManager.getState()}`);
+
+        const popups = await PopupManager.load();
+        log(`[PASS] PopupManager.load() resolved with ${popups.length} popups`);
+
+        if (popups.length > 0) {
+          const targetPopupId = popups[0].id;
+          PopupManager.show(targetPopupId);
+          log(`[PASS] PopupManager.show(${targetPopupId}) invoked. Visible: ${PopupManager.getState()}`);
+
+          const host = document.getElementById('popup-manager-host-root');
+          if (host && host.shadowRoot) {
+            log(`[PASS] Shadow DOM host #popup-manager-host-root verified in DOM.`);
+            const titleEl = host.shadowRoot.getElementById('popup-manager-title');
+            log(`[PASS] Shadow DOM popup title text: "${titleEl ? titleEl.textContent : 'none'}"`);
+          } else {
+            log(`[FAIL] Shadow DOM host not found.`);
+          }
+
+          // Hide popup
+          PopupManager.hide();
+          log(`[PASS] PopupManager.hide() succeeded.`);
+        } else {
+          log(`[INFO] No eligible popups returned for configured website.`);
+        }
+
+        // Clean teardown
+        PopupManager.destroy();
+        log(`[PASS] PopupManager.destroy() succeeded. State: ${PopupManager.getState()}`);
+
+        log('\nALL ESM BROWSER CHECKS COMPLETED.');
+      } catch (err) {
+        log(`[FAIL] ESM Browser verification error: ${err.message}`);
+      }
+    });
   </script>
 </body>
 </html>
