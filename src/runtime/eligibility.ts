@@ -47,6 +47,45 @@ function isPopupScheduleEligible(popup: PublicPopup, nowMs: number): boolean {
   return true;
 }
 
+function normalizePath(path: string): string {
+  const normalized = path.trim().split(/[?#]/, 1)[0] || '/';
+  if (!normalized.startsWith('/')) return `/${normalized}`;
+  return normalized.length > 1 ? normalized.replace(/\/+$/, '') : '/';
+}
+
+function matchesPathRule(pathname: string, rule: string): boolean {
+  const path = normalizePath(pathname);
+  const pattern = normalizePath(rule);
+  if (pattern === '*') return true;
+  if (pattern.endsWith('/*')) {
+    const prefix = pattern.slice(0, -2).replace(/\/+$/, '');
+    return path === prefix || path.startsWith(`${prefix}/`);
+  }
+  return path === pattern;
+}
+
+function isPopupTargetedToPath(popup: PublicPopup, pathname: string): boolean {
+  const targets = (popup.target_pages || '').split(/[\n,]/).map((item) => item.trim()).filter(Boolean);
+  const exclusions = (popup.exclude_pages || '').split(/[\n,]/).map((item) => item.trim()).filter(Boolean);
+  if (exclusions.some((rule) => matchesPathRule(pathname, rule))) return false;
+  return targets.length === 0 || targets.includes('all') || targets.some((rule) => matchesPathRule(pathname, rule));
+}
+
+export type PopupDevice = 'desktop' | 'tablet' | 'mobile';
+
+export function getPopupDevice(viewportWidth: number): PopupDevice {
+  if (viewportWidth < 768) return 'mobile';
+  if (viewportWidth < 1024) return 'tablet';
+  return 'desktop';
+}
+
+function isPopupEnabledForCurrentDevice(popup: PublicPopup, viewportWidth: number): boolean {
+  const device = getPopupDevice(viewportWidth);
+  if (device === 'mobile') return popup.show_on_mobile !== false;
+  if (device === 'tablet') return popup.show_on_tablet !== false;
+  return popup.show_on_desktop !== false;
+}
+
 /**
  * Pure helper function that filters a list of public popups against the client-side
  * schedule window.
@@ -61,7 +100,8 @@ function isPopupScheduleEligible(popup: PublicPopup, nowMs: number): boolean {
  */
 export function filterEligiblePopups(
   popups: readonly PublicPopup[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  pathname: string = typeof window === 'undefined' ? '/' : window.location.pathname
 ): PublicPopup[] {
   const nowMs = now.getTime();
   if (Number.isNaN(nowMs)) {
@@ -69,8 +109,13 @@ export function filterEligiblePopups(
   }
 
   const eligible: PublicPopup[] = [];
+  const viewportWidth = typeof window === 'undefined' ? 1280 : window.innerWidth;
   for (const popup of popups) {
-    if (isPopupScheduleEligible(popup, nowMs)) {
+    if (
+      isPopupScheduleEligible(popup, nowMs) &&
+      isPopupTargetedToPath(popup, pathname) &&
+      isPopupEnabledForCurrentDevice(popup, viewportWidth)
+    ) {
       eligible.push(popup);
     }
   }

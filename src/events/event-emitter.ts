@@ -6,7 +6,9 @@ export type SDKEvent =
   | 'popup:shown'
   | 'popup:hidden'
   | 'popup:closed'
-  | 'popup:error';
+  | 'popup:error'
+  | 'popup:submitted'
+  | 'popup:spin';
 
 /**
  * Payload emitted when eligible popups are successfully loaded and validated.
@@ -63,6 +65,27 @@ export interface PopupErrorPayload {
 }
 
 /**
+ * Payload emitted when a visitor submits a form or lead capture inside a popup.
+ */
+export interface PopupSubmittedPayload {
+  popupId: number;
+  email?: string;
+  name?: string;
+  spinResult?: string;
+  couponCode?: string;
+  formData?: Record<string, any>;
+}
+
+/**
+ * Payload emitted when a visitor spins a fortune wheel or lucky draw inside a popup.
+ */
+export interface PopupSpinPayload {
+  popupId: number;
+  spinResult: string;
+  couponCode?: string;
+}
+
+/**
  * Map connecting each SDKEvent to its respective strongly typed payload.
  */
 export interface SDKEventPayloadMap {
@@ -71,6 +94,8 @@ export interface SDKEventPayloadMap {
   'popup:hidden': PopupHiddenPayload;
   'popup:closed': PopupClosedPayload;
   'popup:error': PopupErrorPayload;
+  'popup:submitted': PopupSubmittedPayload;
+  'popup:spin': PopupSpinPayload;
 }
 
 /**

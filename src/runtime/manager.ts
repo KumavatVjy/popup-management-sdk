@@ -18,6 +18,8 @@ export class RuntimeManager {
   private generationId: number = 0;
   private renderer: PopupRenderer = new PopupRenderer();
   private events: EventEmitter = new EventEmitter();
+  private triggerTimer: ReturnType<typeof setTimeout> | null = null;
+  private scrollTriggerHandler: (() => void) | null = null;
 
   /**
    * Registers a subscriber callback for an SDK lifecycle event.
@@ -65,6 +67,7 @@ export class RuntimeManager {
    * @param client The configured ApiClient instance.
    */
   public init(config: NormalizedPopupManagerConfig, client: ApiClient): void {
+    this.clearScheduledTrigger();
     // Tear down any existing rendered popup and listeners
     this.renderer.destroy();
 
@@ -109,6 +112,7 @@ export class RuntimeManager {
     }
 
     const currentGeneration = ++this.generationId;
+    this.clearScheduledTrigger();
     this.state = 'LOADING';
 
     let rawPopups: PublicPopup[];
@@ -146,13 +150,7 @@ export class RuntimeManager {
       if (this.config.autoShow) {
         if (eligible.length > 0) {
           if (typeof document !== 'undefined') {
-            try {
-              this.show();
-            } catch (err) {
-              // Gracefully handle render failures during autoShow
-              const message = err instanceof Error ? err.message : 'Failed to auto-show popup';
-              this.events.emit('popup:error', { error: message, context: 'rendering' });
-            }
+            this.scheduleAutoShow(eligible, currentGeneration);
           }
         } else {
           this.renderer.hide();
@@ -185,6 +183,7 @@ export class RuntimeManager {
    * @throws Error if called outside a DOM environment or if the requested popup is unavailable.
    */
   public show(popupId?: number): void {
+    this.clearScheduledTrigger();
     if (this.state === 'DESTROYED') {
       const err = new ConfigurationError('PopupManager has been destroyed. Call init() before calling show()');
       this.events.emit('popup:error', { error: err.message, context: 'runtime' });
@@ -231,6 +230,7 @@ export class RuntimeManager {
           if (this.state === 'DESTROYED' || this.generationId !== currentGeneration) {
             return;
           }
+          this.recordDismissalCooldown(target);
           // 1. User dismissal: emit popup:closed first with the reason
           this.events.emit('popup:closed', { popupId: targetId, reason });
         },
@@ -240,6 +240,60 @@ export class RuntimeManager {
           }
           // 2. Then emit popup:hidden
           this.events.emit('popup:hidden', { popupId: targetId });
+        },
+        onSubmit: (data) => {
+          if (this.state === 'DESTROYED' || this.generationId !== currentGeneration) {
+            return;
+          }
+
+          // 1. Send submission to backend DB via public submission API (Option B)
+          if (this.config) {
+            const endpoint = `${this.config.apiBaseUrl}/api/v1/public/popups/${targetId}/submit`;
+            try {
+              fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  popup_id: targetId,
+                  website_key: this.config.websiteKey,
+                  email: data.email,
+                  name: data.name,
+                  spin_result: data.spinResult,
+                  coupon_code: data.couponCode,
+                  form_data: data.formData,
+                  page_url: typeof window !== 'undefined' ? window.location.href : '',
+                }),
+              }).catch((err) => {
+                console.warn('[PopupManager] Failed to record submission:', err);
+              });
+            } catch (err) {
+              console.warn('[PopupManager] Error initiating submission request:', err);
+            }
+          }
+
+          // 2. Simultaneously emit public SDK events for host page listeners (Option A)
+          this.events.emit('popup:submitted', data);
+
+          if (data.spinResult) {
+            this.events.emit('popup:spin', {
+              popupId: targetId,
+              spinResult: data.spinResult,
+              couponCode: data.couponCode,
+            });
+          }
+
+          // 3. Dispatch standard CustomEvent on window for non-SDK listeners
+          if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            try {
+              window.dispatchEvent(
+                new CustomEvent('popup-manager:submitted', {
+                  detail: data,
+                })
+              );
+            } catch {
+              // Ignore in environments where CustomEvent is limited
+            }
+          }
         },
       });
 
@@ -269,6 +323,7 @@ export class RuntimeManager {
    * Cleans up the runtime session, releases resources, and removes the Shadow DOM host.
    */
   public destroy(): void {
+    this.clearScheduledTrigger();
     this.generationId++;
     this.state = 'DESTROYED';
     this.renderer.destroy();
@@ -277,5 +332,87 @@ export class RuntimeManager {
     this.client = null;
     // Release registered event callbacks
     this.events.clear();
+  }
+
+  private clearScheduledTrigger(): void {
+    if (this.triggerTimer !== null) {
+      clearTimeout(this.triggerTimer);
+      this.triggerTimer = null;
+    }
+    if (this.scrollTriggerHandler && typeof window !== 'undefined') {
+      window.removeEventListener('scroll', this.scrollTriggerHandler);
+      this.scrollTriggerHandler = null;
+    }
+  }
+
+  private isInCooldown(popup: PublicPopup): boolean {
+    if (!this.config || popup.cooldown_minutes <= 0 || typeof window === 'undefined') return false;
+    const key = this.cooldownStorageKey(popup);
+    try {
+      const closedAt = Number(window.localStorage.getItem(key));
+      return Number.isFinite(closedAt) && closedAt > 0 &&
+        Date.now() - closedAt < popup.cooldown_minutes * 60_000;
+    } catch {
+      return false;
+    }
+  }
+
+  private cooldownStorageKey(popup: PublicPopup): string {
+    return `popup-manager:cooldown:${this.config?.websiteKey ?? 'unknown'}:${popup.id}`;
+  }
+
+  private recordDismissalCooldown(popup: PublicPopup): void {
+    if (!this.config || popup.cooldown_minutes <= 0 || typeof window === 'undefined') return;
+    const key = this.cooldownStorageKey(popup);
+    const closedAt = Date.now();
+    this.sessionDismissals.set(key, closedAt);
+    try {
+      window.localStorage.setItem(key, String(closedAt));
+    } catch {
+      // The in-memory timestamp keeps cooldown active for this page session.
+    }
+  }
+
+  private sessionDismissals = new Map<string, number>();
+
+  private scheduleAutoShow(popups: PublicPopup[], generation: number): void {
+    const popup = popups.find((candidate) => {
+      if (this.isInCooldown(candidate)) return false;
+      const closedAt = this.sessionDismissals.get(this.cooldownStorageKey(candidate));
+      return !closedAt || candidate.cooldown_minutes <= 0 ||
+        Date.now() - closedAt >= candidate.cooldown_minutes * 60_000;
+    });
+    if (!popup) return;
+
+    const showIfCurrent = () => {
+      this.clearScheduledTrigger();
+      if (generation !== this.generationId || this.state === 'DESTROYED') return;
+      try {
+        this.show(popup.id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to auto-show popup';
+        this.events.emit('popup:error', { error: message, context: 'rendering' });
+      }
+    };
+
+    const trigger = popup.trigger_type || 'immediate';
+    if (trigger === 'delay') {
+      const seconds = Math.max(0, Math.min(300, popup.trigger_delay_seconds || 0));
+      this.triggerTimer = setTimeout(showIfCurrent, seconds * 1000);
+      return;
+    }
+    if (trigger === 'scroll') {
+      const threshold = Math.max(0, Math.min(100, popup.trigger_scroll_percentage || 0));
+      const checkScroll = () => {
+        const root = document.documentElement;
+        const scrollable = Math.max(1, root.scrollHeight - window.innerHeight);
+        const progress = (window.scrollY / scrollable) * 100;
+        if (threshold === 0 ? window.scrollY > 0 : progress >= threshold) showIfCurrent();
+      };
+      this.scrollTriggerHandler = checkScroll;
+      window.addEventListener('scroll', checkScroll, { passive: true });
+      return;
+    }
+    showIfCurrent();
   }
 }

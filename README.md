@@ -1,6 +1,6 @@
 # Popup Manager JavaScript SDK
 
-A lightweight, zero-dependency browser SDK for delivering, managing, and rendering popups configured in the Popup Management System.
+A lightweight browser SDK for delivering, managing, and rendering popups configured in the Popup Management System. It uses DOMPurify to sanitize untrusted popup content.
 
 ## Architectural Overview
 
@@ -211,6 +211,16 @@ All popup content is sanitized before injection using DOMPurify against a conser
 - **Neutralized Vectors**: Strips all `<script>`, `<iframe>`, `<object>`, `<embed>`, `<svg>`, and `<form>` elements.
 - **Event Handlers**: Strips all inline `on*` attributes (`onclick`, `onerror`, `onload`, etc.).
 - **URL Safety**: Strips `javascript:` pseudo-protocol URIs. Enforces `rel="noopener noreferrer"` on links opening in `target="_blank"`.
+
+## Custom JavaScript
+
+Popup campaigns may include administrator supplied JavaScript in `custom_js`. The SDK runs it after mounting the popup and passes the mounted wrapper as `popupRoot` and the public popup data as `popup`. For example:
+
+```js
+popupRoot.querySelector('.popup-manager-card')?.classList.add('campaign-card');
+```
+
+Custom JavaScript runs in the visitor page context and can access the host page. Add only code you trust. Sites with a Content Security Policy that blocks `unsafe-eval` may prevent custom JavaScript from running; popup rendering itself continues.
 
 ## Development & Testing
 

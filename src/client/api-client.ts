@@ -8,6 +8,15 @@ const VALID_POSITIONS: ReadonlySet<string> = new Set<PopupPosition>([
   'top-banner',
   'bottom-left',
   'bottom-right',
+  'top-left',
+  'top-center',
+  'top-right',
+  'middle-left',
+  'middle-center',
+  'middle-right',
+  'bottom-center',
+  'top-banner-center',
+  'bottom-banner-center',
 ]);
 
 /**
@@ -58,6 +67,9 @@ export class ApiClient {
     const endpoint = `${normalizedBase}/api/v1/public/popups`;
     const url = new URL(endpoint);
     url.searchParams.set('website_key', this.websiteKey);
+    if (typeof window !== 'undefined' && window.location?.pathname) {
+      url.searchParams.set('page_path', window.location.pathname);
+    }
     return url;
   }
 
@@ -223,8 +235,77 @@ export class ApiClient {
       title: p.title,
       content: p.content,
       position: p.position as PopupPosition,
-      start_time: p.start_time ?? null,
-      end_time: p.end_time ?? null,
+      start_time: typeof p.start_time === 'string' ? p.start_time : null,
+      end_time: typeof p.end_time === 'string' ? p.end_time : null,
+
+      // Banner image with link
+      banner_image_url: typeof p.banner_image_url === 'string' ? p.banner_image_url : '',
+      banner_link_url: typeof p.banner_link_url === 'string' ? p.banner_link_url : '',
+      banner_link_target: typeof p.banner_link_target === 'string' ? p.banner_link_target : '_blank',
+      badge_text: typeof p.badge_text === 'string' ? p.badge_text : '',
+      show_image: typeof p.show_image === 'boolean' ? p.show_image : true,
+      show_content: typeof p.show_content === 'boolean' ? p.show_content : true,
+      media_overlay_color: typeof p.media_overlay_color === 'string' ? p.media_overlay_color : '',
+      media_overlay_opacity: typeof p.media_overlay_opacity === 'number' ? p.media_overlay_opacity : 0,
+      media_border_color: typeof p.media_border_color === 'string' ? p.media_border_color : '',
+      media_border_width: typeof p.media_border_width === 'number' ? p.media_border_width : 0,
+      footer_background_color: typeof p.footer_background_color === 'string' ? p.footer_background_color : '',
+      footer_border_color: typeof p.footer_border_color === 'string' ? p.footer_border_color : '',
+      footer_border_width: typeof p.footer_border_width === 'number' ? p.footer_border_width : 0,
+
+      // Countdown timer
+      countdown_enabled: typeof p.countdown_enabled === 'boolean' ? p.countdown_enabled : false,
+      countdown_end_time: typeof p.countdown_end_time === 'string' ? p.countdown_end_time : null,
+      countdown_title: typeof p.countdown_title === 'string' ? p.countdown_title : '',
+
+      // Color customization
+      title_color: typeof p.title_color === 'string' ? p.title_color : '',
+      background_color: typeof p.background_color === 'string' ? p.background_color : '',
+      border_color: typeof p.border_color === 'string' ? p.border_color : '',
+      border_width: typeof p.border_width === 'number' ? p.border_width : 1,
+      border_top_color: typeof p.border_top_color === 'string' ? p.border_top_color : '',
+      border_top_width: typeof p.border_top_width === 'number' ? p.border_top_width : -1,
+      border_right_color: typeof p.border_right_color === 'string' ? p.border_right_color : '',
+      border_right_width: typeof p.border_right_width === 'number' ? p.border_right_width : -1,
+      border_bottom_color: typeof p.border_bottom_color === 'string' ? p.border_bottom_color : '',
+      border_bottom_width: typeof p.border_bottom_width === 'number' ? p.border_bottom_width : -1,
+      border_left_color: typeof p.border_left_color === 'string' ? p.border_left_color : '',
+      border_left_width: typeof p.border_left_width === 'number' ? p.border_left_width : -1,
+      box_shadow: typeof p.box_shadow === 'string' ? p.box_shadow : '',
+      media_box_shadow: typeof p.media_box_shadow === 'string' ? p.media_box_shadow : '',
+      footer_box_shadow: typeof p.footer_box_shadow === 'string' ? p.footer_box_shadow : '',
+      border_radius: typeof p.border_radius === 'number' ? p.border_radius : 12,
+      popup_width: typeof p.popup_width === 'number' ? p.popup_width : 0,
+      popup_height: typeof p.popup_height === 'number' ? p.popup_height : 0,
+      show_on_desktop: typeof p.show_on_desktop === 'boolean' ? p.show_on_desktop : true,
+      show_on_tablet: typeof p.show_on_tablet === 'boolean' ? p.show_on_tablet : true,
+      show_on_mobile: typeof p.show_on_mobile === 'boolean' ? p.show_on_mobile : true,
+
+      // CTA button
+      cta_text: typeof p.cta_text === 'string' ? p.cta_text : '',
+      cta_url: typeof p.cta_url === 'string' ? p.cta_url : '',
+      cta_target: typeof p.cta_target === 'string' ? p.cta_target : '_blank',
+      cta_text_color: typeof p.cta_text_color === 'string' ? p.cta_text_color : '',
+      cta_bg_color: typeof p.cta_bg_color === 'string' ? p.cta_bg_color : '',
+
+      // Close button
+      close_button_choice: typeof p.close_button_choice === 'string' ? p.close_button_choice : 'default',
+      close_button_position: typeof p.close_button_position === 'string' ? p.close_button_position : 'top-right',
+      close_button_color: typeof p.close_button_color === 'string' ? p.close_button_color : '',
+
+      // Trigger settings
+      trigger_type: typeof p.trigger_type === 'string' ? p.trigger_type : 'immediate',
+      trigger_delay_seconds: typeof p.trigger_delay_seconds === 'number' ? p.trigger_delay_seconds : 0,
+      trigger_scroll_percentage: typeof p.trigger_scroll_percentage === 'number' ? p.trigger_scroll_percentage : 0,
+
+      // Cooldown
+      cooldown_minutes: typeof p.cooldown_minutes === 'number' ? p.cooldown_minutes : 0,
+
+      // Custom CSS
+      custom_css: typeof p.custom_css === 'string' ? p.custom_css : '',
+      custom_js: typeof p.custom_js === 'string' ? p.custom_js : '',
+      target_pages: typeof p.target_pages === 'string' ? p.target_pages : '',
+      exclude_pages: typeof p.exclude_pages === 'string' ? p.exclude_pages : '',
     };
   }
 }

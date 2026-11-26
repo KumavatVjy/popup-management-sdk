@@ -12,7 +12,7 @@ export interface PositionConfig {
 }
 
 /**
- * Position mappings for the four backend-supported popup positions.
+ * Position mappings for all backend-supported popup positions.
  */
 export const POSITION_CONFIGS: Readonly<Record<PopupPosition, PositionConfig>> = Object.freeze({
   center: {
@@ -42,6 +42,69 @@ export const POSITION_CONFIGS: Readonly<Record<PopupPosition, PositionConfig>> =
     role: 'region',
     isModal: false,
     ariaLabelDefault: 'Promotional notification',
+  },
+  'top-left': {
+    wrapperClass: 'popup-manager-position-top-left',
+    hasBackdrop: false,
+    role: 'region',
+    isModal: false,
+    ariaLabelDefault: 'Promotional notification',
+  },
+  'top-center': {
+    wrapperClass: 'popup-manager-position-top-center',
+    hasBackdrop: false,
+    role: 'region',
+    isModal: false,
+    ariaLabelDefault: 'Promotional notification',
+  },
+  'top-right': {
+    wrapperClass: 'popup-manager-position-top-right',
+    hasBackdrop: false,
+    role: 'region',
+    isModal: false,
+    ariaLabelDefault: 'Promotional notification',
+  },
+  'middle-left': {
+    wrapperClass: 'popup-manager-position-middle-left',
+    hasBackdrop: false,
+    role: 'region',
+    isModal: false,
+    ariaLabelDefault: 'Promotional notification',
+  },
+  'middle-center': {
+    wrapperClass: 'popup-manager-position-middle-center',
+    hasBackdrop: true,
+    role: 'dialog',
+    isModal: true,
+    ariaLabelDefault: 'Promotional dialog',
+  },
+  'middle-right': {
+    wrapperClass: 'popup-manager-position-middle-right',
+    hasBackdrop: false,
+    role: 'region',
+    isModal: false,
+    ariaLabelDefault: 'Promotional notification',
+  },
+  'bottom-center': {
+    wrapperClass: 'popup-manager-position-bottom-center',
+    hasBackdrop: false,
+    role: 'region',
+    isModal: false,
+    ariaLabelDefault: 'Promotional notification',
+  },
+  'top-banner-center': {
+    wrapperClass: 'popup-manager-position-top-banner-center',
+    hasBackdrop: false,
+    role: 'region',
+    isModal: false,
+    ariaLabelDefault: 'Promotional banner',
+  },
+  'bottom-banner-center': {
+    wrapperClass: 'popup-manager-position-bottom-banner-center',
+    hasBackdrop: false,
+    role: 'region',
+    isModal: false,
+    ariaLabelDefault: 'Promotional banner',
   },
 });
 
